@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#faf8ef">
+<title>2048 - 技能加强版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #776e65;
+    background: #faf8ef;
+    overflow-x: hidden;
+    -webkit-user-select: none; user-select: none;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* ============ 顶部 ============ */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .title-area { display: flex; align-items: center; gap: 10px; }
+  .title { font-size: 40px; font-weight: 800; color: #776e65; letter-spacing: -1px; line-height: 1; }
+  .mode-badge {
+    font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px;
+    background: #f2b179; color: #fff;
+  }
+  .scores { display: flex; gap: 6px; }
+  .score-box {
+    background: #bbada0; border-radius: 8px; padding: 6px 12px; min-width: 64px;
+    text-align: center; color: #fff;
+  }
+  .score-box .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #eee4da; }
+  .score-box .value { font-size: 22px; font-weight: 800; line-height: 1.2; position: relative; }
+  .score-box .value .addition {
+    position: absolute; right: 0; top: 0; color: rgba(119,110,101,0.9);
+    font-weight: 800; font-size: 20px; opacity: 0; pointer-events: none;
+    animation: scoreUp 0.6s ease-in-out forwards;
+  }
+  @keyframes scoreUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-26px); }
+  }
+
+  /* ============ 工具栏 ============ */
+  .toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .btn {
+    background: #8f7a66; color: #f9f6f2; border: none; border-radius: 8px;
+    padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: transform 0.1s ease, background 0.15s ease, box-shadow 0.15s ease;
+    white-space: nowrap; position: relative;
+  }
+  .btn:active { transform: scale(0.93); }
+  .btn.primary { background: #f65e3b; }
+  .btn.hint-btn { background: #5b9bd5; }
+  .btn.easy-btn { background: #6d9e5b; transition: all 0.2s ease; }
+  .btn.easy-btn.active { background: #f2b179; box-shadow: 0 0 12px rgba(242,177,121,0.6); }
+  .btn .badge {
+    position: absolute; top: -6px; right: -6px; background: #f65e3b; color: #fff;
+    font-size: 10px; font-weight: 800; width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .intro-text { flex: 1; min-width: 0; }
+  .intro-text strong { font-size: 14px; font-weight: 700; color: #776e65; }
+  .intro-text p { font-size: 10px; color: #9c8f80; }
+
+  /* ============ 能量条 ============ */
+  .energy-section { display: flex; align-items: center; gap: 8px; }
+  .energy-label { font-size: 11px; font-weight: 700; color: #9c8f80; white-space: nowrap; }
+  .energy-bar-wrap {
+    flex: 1; height: 14px; background: #e0d6cc; border-radius: 7px; overflow: hidden;
+    position: relative;
+  }
+  .energy-bar {
+    height: 100%; background: linear-gradient(90deg, #f2b179, #f67c5f, #edcf72);
+    border-radius: 7px; transition: width 0.3s ease; width: 0%;
+    position: relative;
+  }
+  .energy-bar.full { animation: pulseBar 0.6s ease-in-out infinite alternate; }
+  @keyframes pulseBar {
+    0% { filter: brightness(1); }
+    100% { filter: brightness(1.3); }
+  }
+  .energy-value {
+    font-size: 11px; font-weight: 800; color: #776e65; min-width: 36px; text-align: right;
+  }
+
+  /* ============ 技能按钮区 ============ */
+  .skills-row { display: flex; gap: 8px; }
+  .skill-btn {
+    flex: 1; border: 2px solid transparent; border-radius: 10px; padding: 10px 6px;
+    font-size: 12px; font-weight: 700; cursor: pointer; text-align: center;
+    transition: all 0.2s ease; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .skill-btn .skill-icon { font-size: 22px; }
+  .skill-btn .skill-cost { font-size: 10px; opacity: 0.8; }
+  .skill-btn.ready {
+    animation: glowPulse 1.5s ease-in-out infinite;
+  }
+  .skill-btn:active { transform: scale(0.93); }
+  .skill-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(30%); }
+  .skill-btn:disabled:active { transform: none; }
+
+  .skill-bomb { background: #fff0f0; border-color: #f65e3b; color: #c0392b; }
+  .skill-bomb.ready { box-shadow: 0 0 16px rgba(246,94,59,0.5); }
+  .skill-shuffle { background: #f0f0ff; border-color: #5b9bd5; color: #2c5f8a; }
+  .skill-shuffle.ready { box-shadow: 0 0 16px rgba(91,155,213,0.5); }
+  .skill-upgrade { background: #fffdf0; border-color: #edcf72; color: #8a6d1b; }
+  .skill-upgrade.ready { box-shadow: 0 0 16px rgba(237,207,114,0.6); }
+
+  @keyframes glowPulse {
+    0% { box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+    50% { box-shadow: 0 0 20px currentColor; }
+    100% { box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+  }
+
+  /* ============ 游戏面板 ============ */
+  .game-wrap {
+    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    background: #bbada0; border-radius: 10px; touch-action: none;
+    --gap: 2.6%; --size: calc((100% - 5 * var(--gap)) / 4);
+  }
+  .cell {
+    position: absolute; width: var(--size); height: var(--size); border-radius: 7px;
+    background: rgba(238, 228, 218, 0.35);
+    left: calc(var(--gap) + var(--x) * (var(--size) + var(--gap)));
+    top:  calc(var(--gap) + var(--y) * (var(--size) + var(--gap)));
+  }
+
+  /* 技能瞄准模式 */
+  .game-wrap.targeting .tile { cursor: pointer; }
+  .game-wrap.targeting .tile .tile-inner { transition: transform 0.15s ease; }
+  .game-wrap.targeting .tile:hover .tile-inner { transform: scale(1.08); }
+  .game-wrap.target-bomb .tile:hover .tile-inner {
+    box-shadow: 0 0 18px rgba(246,94,59,0.8), inset 0 0 8px rgba(246,94,59,0.3);
+  }
+  .game-wrap.target-upgrade .tile:hover .tile-inner {
+    box-shadow: 0 0 18px rgba(237,207,114,0.9), inset 0 0 8px rgba(237,207,114,0.4);
+  }
+
+  /* 提示箭头 */
+  .hint-arrow {
+    position: absolute; z-index: 5; pointer-events: none; opacity: 0;
+    transition: opacity 0.3s ease; display: flex; align-items: center; justify-content: center;
+    font-size: 32px; color: #f65e3b; font-weight: 900;
+    text-shadow: 0 0 16px rgba(246,94,59,0.6);
+  }
+  .hint-arrow.show { opacity: 1; }
+  .hint-arrow.up    { top: 2px; left: 50%; transform: translateX(-50%); }
+  .hint-arrow.down  { bottom: 2px; left: 50%; transform: translateX(-50%); }
+  .hint-arrow.left  { left: 6px; top: 50%; transform: translateY(-50%); }
+  .hint-arrow.right { right: 6px; top: 50%; transform: translateY(-50%); }
+
+  /* ============ 方块 ============ */
+  .tile {
+    position: absolute; width: var(--size); height: var(--size);
+    left: calc(var(--gap) + var(--x) * (var(--size) + var(--gap)));
+    top:  calc(var(--gap) + var(--y) * (var(--size) + var(--gap)));
+    transition: left 0.13s ease-in-out, top 0.13s ease-in-out; z-index: 2;
+  }
+  .tile-inner {
+    width: 100%; height: 100%; border-radius: 7px; display: flex;
+    align-items: center; justify-content: center; font-weight: 800; line-height: 1;
+    background: #eee4da; color: #776e65;
+    font-size: clamp(22px, 8vw, 44px); position: relative;
+  }
+  .tile[data-value="2"]    .tile-inner { background:#eee4da; color:#776e65; }
+  .tile[data-value="4"]    .tile-inner { background:#ede0c8; color:#776e65; }
+  .tile[data-value="8"]    .tile-inner { background:#f2b179; color:#f9f6f2; }
+  .tile[data-value="16"]   .tile-inner { background:#f59563; color:#f9f6f2; }
+  .tile[data-value="32"]   .tile-inner { background:#f67c5f; color:#f9f6f2; }
+  .tile[data-value="64"]   .tile-inner { background:#f65e3b; color:#f9f6f2; }
+  .tile[data-value="128"]  .tile-inner { background:#edcf72; color:#f9f6f2; font-size:clamp(20px,7vw,38px); box-shadow:0 0 16px rgba(243,215,116,0.5); }
+  .tile[data-value="256"]  .tile-inner { background:#edcc61; color:#f9f6f2; font-size:clamp(20px,7vw,38px); box-shadow:0 0 18px rgba(243,215,116,0.6); }
+  .tile[data-value="512"]  .tile-inner { background:#edc850; color:#f9f6f2; font-size:clamp(20px,7vw,38px); box-shadow:0 0 20px rgba(243,215,116,0.7); }
+  .tile[data-value="1024"] .tile-inner { background:#edc53f; color:#f9f6f2; font-size:clamp(17px,6vw,32px); box-shadow:0 0 22px rgba(243,215,116,0.8); }
+  .tile[data-value="2048"] .tile-inner { background:#edc22e; color:#f9f6f2; font-size:clamp(17px,6vw,32px); box-shadow:0 0 30px rgba(243,215,116,0.9); }
+  .tile[data-value="4096"] .tile-inner,
+  .tile[data-value="8192"] .tile-inner { background:#3c3a32; color:#f9f6f2; font-size:clamp(17px,6vw,32px); }
+
+  /* 可合并高亮 */
+  .tile.can-merge .tile-inner {
+    animation: mergeHint 0.7s ease-in-out infinite alternate;
+  }
+  @keyframes mergeHint {
+    0% { box-shadow: 0 0 8px rgba(246,94,59,0.35); }
+    100% { box-shadow: 0 0 20px rgba(246,94,59,0.65); }
+  }
+
+  /* 动画 */
+  .tile.new .tile-inner    { animation: appear 0.18s ease 0.06s both; }
+  .tile.merged .tile-inner { animation: pop 0.2s ease 0.1s both; z-index: 3; }
+  @keyframes appear {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes pop {
+    0% { transform: scale(0); }
+    55% { transform: scale(1.22); }
+    100% { transform: scale(1); }
+  }
+
+  /* ============ 连击文字 ============ */
+  .combo-text {
+    position: absolute; z-index: 20; pointer-events: none;
+    left: 50%; top: 40%; transform: translate(-50%, -50%);
+    font-size: 48px; font-weight: 900; opacity: 0;
+    text-shadow: 0 0 20px rgba(246,94,59,0.8), 0 2px 4px rgba(0,0,0,0.15);
+    white-space: nowrap;
+  }
+  .combo-text.fire { color: #f65e3b; animation: comboIn 0.7s ease-out forwards; }
+  .combo-text.gold { color: #edc850; animation: comboIn 0.7s ease-out forwards; }
+  @keyframes comboIn {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-8deg); }
+    30% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(3deg); }
+    60% { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(0deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8) translateY(-80px); }
+  }
+
+  /* ============ 粒子 ============ */
+  .particle {
+    position: absolute; z-index: 25; pointer-events: none;
+    width: 8px; height: 8px; border-radius: 50%;
+    animation: particleFly 0.7s ease-out forwards;
+  }
+  @keyframes particleFly {
+    0% { opacity: 1; transform: translate(0, 0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+  }
+
+  /* ============ 遮罩 ============ */
+  .game-message {
+    position: absolute; inset: 0; background: rgba(238, 228, 218, 0.78);
+    border-radius: 10px; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 12px; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease; z-index: 15; text-align: center; padding: 20px;
+  }
+  .game-message.show { opacity: 1; pointer-events: auto; }
+  .game-message p { font-size: 40px; font-weight: 800; color: #776e65; }
+  .game-message.lower p { color: #f67c5f; }
+  .game-message .msg-sub { font-size: 14px; color: #9c8f80; font-weight: 600; }
+
+  /* ============ 技能冷却指示器 ============ */
+  .cooldown-ring {
+    position: absolute; top: -2px; right: -2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid #f65e3b; background: transparent;
+    display: none;
+  }
+  .cooldown-ring.show { display: block; animation: cdSpin 0.8s linear infinite; }
+  @keyframes cdSpin {
+    0% { transform: rotate(0deg); border-color: #f65e3b transparent #f65e3b transparent; }
+    100% { transform: rotate(360deg); border-color: #f65e3b transparent #f65e3b transparent; }
+  }
+
+  /* ============ 底部 ============ */
+  .footer-tip { text-align: center; font-size: 11px; color: #9c8f80; }
+  .footer-tip kbd {
+    background: #bbada0; color: #fff; border-radius: 4px; padding: 1px 5px;
+    font-family: inherit; font-size: 10px; font-weight: 700; margin: 0 1px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(119,110,101,0.92); color: #fff; padding: 10px 22px;
+    border-radius: 20px; font-size: 15px; font-weight: 700; pointer-events: none;
+    opacity: 0; transition: all 0.2s ease; z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="title-area">
+      <div class="title">2048</div>
+      <div class="mode-badge" id="modeBadge" style="display:none">简易</div>
+    </div>
+    <div class="scores">
+      <div class="score-box">
+        <div class="label">分数</div>
+        <div class="value" id="score">0</div>
+      </div>
+      <div class="score-box">
+        <div class="label">最高</div>
+        <div class="value" id="best">0</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 功能按钮 -->
+  <div class="toolbar">
+    <div class="intro-text">
+      <strong>合并方块!</strong>
+      <p>滑动 / 方向键</p>
+    </div>
+    <button class="btn hint-btn" id="hintBtn" title="智能提示 (H)">💡 提示</button>
+    <button class="btn" id="undoBtn" title="撤销 (Ctrl+Z)">↩ 撤销<span class="badge" id="undoBadge" style="display:none">0</span></button>
+    <button class="btn easy-btn" id="easyBtn">🌱 简易</button>
+    <button class="btn primary" id="newGame">新游戏</button>
+  </div>
+
+  <!-- 能量条 -->
+  <div class="energy-section">
+    <span class="energy-label">⚡ 能量</span>
+    <div class="energy-bar-wrap">
+      <div class="energy-bar" id="energyBar"></div>
+    </div>
+    <span class="energy-value" id="energyText">0/100</span>
+  </div>
+
+  <!-- 技能栏 -->
+  <div class="skills-row">
+    <button class="skill-btn skill-bomb" id="skillBomb" disabled>
+      <span class="skill-icon">💣</span>炸弹拆除
+      <span class="skill-cost">消耗 25</span>
+    </button>
+    <button class="skill-btn skill-shuffle" id="skillShuffle" disabled>
+      <span class="skill-icon">🔄</span>乾坤挪移
+      <span class="skill-cost">消耗 40</span>
+    </button>
+    <button class="skill-btn skill-upgrade" id="skillUpgrade" disabled>
+      <span class="skill-icon">⭐</span>点石成金
+      <span class="skill-cost">消耗 60</span>
+    </button>
+  </div>
+
+  <!-- 游戏面板 -->
+  <div class="game-wrap" id="game">
+    <div class="hint-arrow up" id="hintUp">▲</div>
+    <div class="hint-arrow down" id="hintDown">▼</div>
+    <div class="hint-arrow left" id="hintLeft">◀</div>
+    <div class="hint-arrow right" id="hintRight">▶</div>
+    <div class="combo-text" id="comboText"></div>
+    <div class="game-message" id="message">
+      <p id="messageText"></p>
+      <div class="msg-sub" id="messageSub"></div>
+      <button class="btn" id="retryBtn">再来一局</button>
+    </div>
+  </div>
+
+  <div class="footer-tip">
+    手机:滑动 &nbsp;|&nbsp; <kbd>↑↓←→</kbd>移动 &nbsp;|&nbsp; <kbd>Z</kbd>撤销 <kbd>H</kbd>提示 &nbsp;|&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>技能
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SIZE = 4;
+  var STORAGE_KEY = "h5_2048_v3_state";
+  var BEST_KEY = "h5_2048_v3_best";
+  var SETTINGS_KEY = "h5_2048_v3_settings";
+
+  // ============ Tile ============
+  function Tile(value, x, y) {
+    this.value = value;
+    this.x = x;
+    this.y = y;
+    this.previousPosition = null;
+    this.mergedFrom = null;
+  }
+  Tile.prototype.savePosition = function () { this.previousPosition = { x: this.x, y: this.y }; };
+  Tile.prototype.updatePosition = function (x, y) { this.x = x; this.y = y; };
+  Tile.prototype.clone = function () { return new Tile(this.value, this.x, this.y); };
+
+  // ============ 状态 ============
+  var grid, score, best, over, won, keepPlaying, easyMode;
+  var energy = 0;
+  var comboCount = 0;
+  var undoStack = [];
+  var MAX_UNDO = 5;
+  var targetingMode = null; // 'bomb' | 'upgrade' | null
+  var hintTimer = 0;
+  var skillCooldowns = { bomb: 0, shuffle: 0, upgrade: 0 };
+
+  // DOM
+  var gameEl = document.getElementById("game");
+  var scoreEl = document.getElementById("score");
+  var bestEl = document.getElementById("best");
+  var messageEl = document.getElementById("message");
+  var messageText = document.getElementById("messageText");
+  var messageSub = document.getElementById("messageSub");
+  var retryBtn = document.getElementById("retryBtn");
+  var undoBtn = document.getElementById("undoBtn");
+  var undoBadge = document.getElementById("undoBadge");
+  var hintBtn = document.getElementById("hintBtn");
+  var easyBtn = document.getElementById("easyBtn");
+  var modeBadge = document.getElementById("modeBadge");
+  var energyBar = document.getElementById("energyBar");
+  var energyText = document.getElementById("energyText");
+  var comboText = document.getElementById("comboText");
+  var toastEl = document.getElementById("toast");
+  var hintUp = document.getElementById("hintUp");
+  var hintDown = document.getElementById("hintDown");
+  var hintLeft = document.getElementById("hintLeft");
+  var hintRight = document.getElementById("hintRight");
+  var skillBomb = document.getElementById("skillBomb");
+  var skillShuffle = document.getElementById("skillShuffle");
+  var skillUpgrade = document.getElementById("skillUpgrade");
+
+  var VECTORS = { 0: { x: 0, y: -1 }, 1: { x: 1, y: 0 }, 2: { x: 0, y: 1 }, 3: { x: -1, y: 0 } };
+  var DIR_NAMES = { 0: "up", 1: "right", 2: "down", 3: "left" };
+
+  // ============ Toast ============
+  var toastTimeout = 0;
+  function showToast(msg) {
+    clearTimeout(toastTimeout);
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    toastTimeout = setTimeout(function () { toastEl.classList.remove("show"); }, 1400);
+  }
+
+  // ============ 粒子特效 ============
+  function spawnParticles(x, y, color, count) {
+    count = count || 8;
+    for (var i = 0; i < count; i++) {
+      var p = document.createElement("div");
+      p.className = "particle";
+      p.style.left = x + "px";
+      p.style.top = y + "px";
+      p.style.background = color;
+      var angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      var dist = 30 + Math.random() * 40;
+      p.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+      p.style.setProperty("--dy", Math.sin(angle) * dist + "px");
+      p.style.width = (4 + Math.random() * 6) + "px";
+      p.style.height = p.style.width;
+      gameEl.appendChild(p);
+      setTimeout(function () { p.remove(); }, 700);
+    }
+  }
+
+  // ============ 连击显示 ============
+  function showCombo() {
+    if (comboCount < 2) return;
+    var el = comboText;
+    el.classList.remove("fire", "gold");
+    if (comboCount >= 6) {
+      el.classList.add("gold");
+      el.textContent = "🔥 COMBO x" + comboCount + "!";
+    } else if (comboCount >= 3) {
+      el.classList.add("fire");
+      el.textContent = "COMBO x" + comboCount + "!";
+    } else {
+      el.classList.add("fire");
+      el.textContent = "COMBO!";
+    }
+    // 强制回流后重播动画
+    void el.offsetWidth;
+    el.style.animation = "none";
+    void el.offsetWidth;
+    el.style.animation = "";
+  }
+
+  // ============ 棋盘工具 ============
+  function emptyGrid() {
+    var g = [];
+    for (var x = 0; x < SIZE; x++) {
+      g[x] = [];
+      for (var y = 0; y < SIZE; y++) g[x][y] = null;
+    }
+    return g;
+  }
+  function availableCells() {
+    var cells = [];
+    for (var x = 0; x < SIZE; x++)
+      for (var y = 0; y < SIZE; y++)
+        if (!grid[x][y]) cells.push({ x: x, y: y });
+    return cells;
+  }
+  function eachCell(fn) {
+    for (var x = 0; x < SIZE; x++)
+      for (var y = 0; y < SIZE; y++) fn(x, y, grid[x][y]);
+  }
+  function addRandomTile() {
+    var cells = availableCells();
+    if (!cells.length) return;
+    var c = cells[Math.floor(Math.random() * cells.length)];
+    var spawnRate4 = easyMode ? 0 : 0.1;
+    grid[c.x][c.y] = new Tile(Math.random() < (1 - spawnRate4) ? 2 : 4, c.x, c.y);
+  }
+  function within(x, y) { return x >= 0 && x < SIZE && y >= 0 && y < SIZE; }
+  function cloneGrid() {
+    var g = emptyGrid();
+    eachCell(function (x, y, t) { if (t) g[x][y] = t.clone(); });
+    return g;
+  }
+
+  // ============ 能量系统 ============
+  function addEnergy(amount) {
+    energy = Math.min(100, energy + amount);
+    updateEnergyUI();
+  }
+  function spendEnergy(amount) {
+    if (energy < amount) return false;
+    energy -= amount;
+    updateEnergyUI();
+    return true;
+  }
+  function updateEnergyUI() {
+    energyBar.style.width = energy + "%";
+    energyText.textContent = energy + "/100";
+    if (energy >= 100) {
+      energyBar.classList.add("full");
+    } else {
+      energyBar.classList.remove("full");
+    }
+    // 更新技能按钮状态
+    updateSkillButtons();
+  }
+  function updateSkillButtons() {
+    skillBomb.disabled = energy < 25 || skillCooldowns.bomb > 0 || !!targetingMode;
+    skillShuffle.disabled = energy < 40 || skillCooldowns.shuffle > 0 || !!targetingMode;
+    skillUpgrade.disabled = energy < 60 || skillCooldowns.upgrade > 0 || !!targetingMode;
+
+    skillBomb.classList.toggle("ready", !skillBomb.disabled);
+    skillShuffle.classList.toggle("ready", !skillShuffle.disabled);
+    skillUpgrade.classList.toggle("ready", !skillUpgrade.disabled);
+  }
+
+  // ============ 撤销 ============
+  function pushUndo() {
+    undoStack.push({ grid: cloneGrid(), score: score, won: won, over: over, energy: energy, comboCount: comboCount });
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    updateUndoBadge();
+  }
+  function undo() {
+    if (over || !undoStack.length) {
+      showToast(undoStack.length ? "游戏已结束" : "没有可撤销的步骤");
+      return;
+    }
+    cancelTargeting();
+    var state = undoStack.pop();
+    grid = state.grid;
+    score = state.score;
+    won = state.won;
+    over = state.over;
+    energy = state.energy;
+    comboCount = state.comboCount;
+    hideMessage();
+    render();
+    updateEnergyUI();
+    updateUndoBadge();
+    clearHint();
+    showToast("↩ 已撤销");
+  }
+  function updateUndoBadge() {
+    if (undoStack.length > 0) {
+      undoBadge.style.display = "flex";
+      undoBadge.textContent = undoStack.length;
+    } else {
+      undoBadge.style.display = "none";
+    }
+  }
+
+  // ============ 新游戏 ============
+  function startNew() {
+    grid = emptyGrid();
+    score = 0;
+    over = false;
+    won = false;
+    keepPlaying = false;
+    energy = 20; // 初始赠送20能量
+    comboCount = 0;
+    undoStack = [];
+    targetingMode = null;
+    skillCooldowns = { bomb: 0, shuffle: 0, upgrade: 0 };
+    cancelTargeting();
+    updateUndoBadge();
+    updateEnergyUI();
+    clearHint();
+    addRandomTile();
+    addRandomTile();
+    hideMessage();
+    render();
+    save();
+  }
+
+  // ============ 简易模式 ============
+  function toggleEasyMode() {
+    easyMode = !easyMode;
+    if (easyMode) {
+      easyBtn.classList.add("active"); easyBtn.textContent = "🌱 简易 ✓";
+      modeBadge.style.display = "inline";
+    } else {
+      easyBtn.classList.remove("active"); easyBtn.textContent = "🌱 简易";
+      modeBadge.style.display = "none";
+    }
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ easyMode: easyMode }));
+    showToast(easyMode ? "简易模式: 不生成4号方块!" : "普通模式");
+  }
+
+  function loadSettings() {
+    try {
+      var raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) { var s = JSON.parse(raw); easyMode = !!s.easyMode; }
+    } catch (e) { easyMode = false; }
+    if (easyMode) {
+      easyBtn.classList.add("active"); easyBtn.textContent = "🌱 简易 ✓";
+      modeBadge.style.display = "inline";
+    }
+  }
+
+  // ============ 移动核心 ============
+  function prepareTiles() {
+    eachCell(function (x, y, t) {
+      if (t) { t.mergedFrom = null; t.savePosition(); }
+    });
+  }
+  function buildTraversals(v) {
+    var tr = { x: [], y: [] };
+    for (var i = 0; i < SIZE; i++) { tr.x.push(i); tr.y.push(i); }
+    if (v.x === 1) tr.x.reverse();
+    if (v.y === 1) tr.y.reverse();
+    return tr;
+  }
+  function findFarthest(x, y, v) {
+    var px, py;
+    do { px = x; py = y; x += v.x; y += v.y; } while (within(x, y) && !grid[x][y]);
+    return { farthest: { x: px, y: py }, next: { x: x, y: y } };
+  }
+  function moveTile(tile, cell) {
+    grid[tile.x][tile.y] = null;
+    grid[cell.x][cell.y] = tile;
+    tile.updatePosition(cell.x, cell.y);
+  }
+  function movesAvailable() {
+    if (availableCells().length) return true;
+    for (var x = 0; x < SIZE; x++)
+      for (var y = 0; y < SIZE; y++) {
+        var t = grid[x][y]; if (!t) continue;
+        for (var d in VECTORS) {
+          var v = VECTORS[d], nx = x + v.x, ny = y + v.y;
+          if (within(nx, ny) && grid[nx][ny] && grid[nx][ny].value === t.value) return true;
+        }
+      }
+    return false;
+  }
+
+  function move(dir) {
+    if (over) return false;
+    var v = VECTORS[dir];
+    var tr = buildTraversals(v);
+    var moved = false;
+    var gain = 0;
+    var mergeCount = 0;
+    var highestMerge = 0;
+
+    pushUndo();
+    prepareTiles();
+
+    tr.x.forEach(function (x) {
+      tr.y.forEach(function (y) {
+        var tile = grid[x][y];
+        if (!tile) return;
+        var res = findFarthest(x, y, v);
+        var next = within(res.next.x, res.next.y) ? grid[res.next.x][res.next.y] : null;
+
+        if (next && next.value === tile.value && !next.mergedFrom) {
+          var merged = new Tile(tile.value * 2, res.next.x, res.next.y);
+          merged.mergedFrom = [tile, next];
+          grid[res.next.x][res.next.y] = merged;
+          grid[x][y] = null;
+          tile.updatePosition(res.next.x, res.next.y);
+          gain += merged.value;
+          mergeCount++;
+          if (merged.value > highestMerge) highestMerge = merged.value;
+          if (merged.value === 2048 && !won && !keepPlaying) won = true;
+          moved = true;
+        } else {
+          moveTile(tile, res.farthest);
+          if (res.farthest.x !== x || res.farthest.y !== y) moved = true;
+        }
+      });
+    });
+
+    if (moved) {
+      // 连击系统
+      if (mergeCount > 0) {
+        comboCount++;
+        // 连击加分: combo级别越高加成越多
+        var comboBonus = Math.floor(gain * comboCount * 0.12);
+        score += comboBonus;
+        // 能量获取: 合并价值+连击加成
+        var energyGain = Math.floor(gain / 4) + comboCount * 2;
+        addEnergy(energyGain);
+        // 显示连击
+        showCombo();
+        // 大合并时粒子特效
+        if (highestMerge >= 64) {
+          // 在游戏面板中心放粒子
+          var rect = gameEl.getBoundingClientRect();
+          spawnParticles(rect.width / 2, rect.height / 2, highestMerge >= 512 ? "#edc850" : highestMerge >= 128 ? "#edcf72" : "#f65e3b", highestMerge >= 512 ? 16 : 10);
+        }
+      } else {
+        comboCount = 0;
+      }
+
+      if (gain > 0) { score += gain; animateScore(gain + (mergeCount > 0 ? Math.floor(gain * comboCount * 0.12) : 0)); }
+      addRandomTile();
+      render();
+      if (won) showMessage(true);
+      else if (!movesAvailable()) { over = true; showMessage(false); }
+    } else {
+      undoStack.pop();
+      updateUndoBadge();
+    }
+
+    if (score > best) { best = score; localStorage.setItem(BEST_KEY, best); }
+    save();
+    clearHint();
+    return moved;
+  }
+
+  // ============ 技能系统 ============
+
+  // --- 瞄准模式 ---
+  function enterTargeting(mode) {
+    if (targetingMode) { cancelTargeting(); return; }
+    targetingMode = mode;
+    gameEl.classList.add("targeting", "target-" + mode);
+    updateSkillButtons();
+    skillBomb.disabled = true;
+    skillShuffle.disabled = true;
+    skillUpgrade.disabled = true;
+    showToast(mode === "bomb" ? "💣 点击要拆除的方块 (再次点击取消)" : "⭐ 点击要升级的方块 (再次点击取消)");
+  }
+
+  function cancelTargeting() {
+    targetingMode = null;
+    gameEl.classList.remove("targeting", "target-bomb", "target-upgrade");
+    updateSkillButtons();
+  }
+
+  function executeBomb(tile) {
+    if (!spendEnergy(25)) { showToast("能量不足!"); return; }
+    skillCooldowns.bomb = 1;
+    var rect = gameEl.getBoundingClientRect();
+    var px = parseFloat(getComputedStyle(gameEl).getPropertyValue("--gap")) / 100 * rect.width;
+    var sz = parseFloat(getComputedStyle(gameEl).getPropertyValue("--size")) / 100 * rect.width;
+    var gpx = parseFloat(getComputedStyle(gameEl).getPropertyValue("--gap")) / 100;
+    var szp = parseFloat(getComputedStyle(gameEl).getPropertyValue("--size")) / 100;
+    var cx = (gpx + tile.x * (szp + gpx) + szp / 2) * rect.width;
+    var cy = (gpx + tile.y * (szp + gpx) + szp / 2) * rect.height;
+    spawnParticles(cx, cy, "#f65e3b", 14);
+    grid[tile.x][tile.y] = null;
+    render();
+    showToast("💣 方块已拆除!");
+    setTimeout(function () { skillCooldowns.bomb = 0; updateSkillButtons(); }, 800);
+  }
+
+  function executeUpgrade(tile) {
+    if (!spendEnergy(60)) { showToast("能量不足!"); return; }
+    skillCooldowns.upgrade = 1;
+    // 查找下一个2的幂
+    var nextVal = tile.value * 2;
+    var rect = gameEl.getBoundingClientRect();
+    var gpx = parseFloat(getComputedStyle(gameEl).getPropertyValue("--gap")) / 100;
+    var szp = parseFloat(getComputedStyle(gameEl).getPropertyValue("--size")) / 100;
+    var cx = (gpx + tile.x * (szp + gpx) + szp / 2) * rect.width;
+    var cy = (gpx + tile.y * (szp + gpx) + szp / 2) * rect.height;
+    spawnParticles(cx, cy, "#edcf72", 12);
+    tile.value = nextVal;
+    if (nextVal === 2048 && !won && !keepPlaying) won = true;
+    render();
+    if (won) showMessage(true);
+    showToast("⭐ 升级为 " + nextVal + "!");
+    save();
+    setTimeout(function () { skillCooldowns.upgrade = 0; updateSkillButtons(); }, 800);
+  }
+
+  function executeShuffle() {
+    if (!spendEnergy(40)) { showToast("能量不足!"); return; }
+    skillCooldowns.shuffle = 1;
+    // 收集所有方块的值
+    var values = [];
+    eachCell(function (x, y, t) { if (t) values.push(t.value); });
+    // 清空棋盘
+    grid = emptyGrid();
+    // 随机重新分配到空位
+    var cells = [];
+    for (var x = 0; x < SIZE; x++)
+      for (var y = 0; y < SIZE; y++) cells.push({ x: x, y: y });
+    // Fisher-Yates shuffle
+    for (var i = cells.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = cells[i]; cells[i] = cells[j]; cells[j] = tmp;
+    }
+    // 放置方块
+    for (var i = 0; i < values.length; i++) {
+      var t = new Tile(values[i], cells[i].x, cells[i].y);
+      t.savePosition();
+      grid[cells[i].x][cells[i].y] = t;
+    }
+    // 粒子效果
+    var rect = gameEl.getBoundingClientRect();
+    spawnParticles(rect.width / 2, rect.height / 2, "#5b9bd5", 20);
+    // 清除动画状态: 强制所有方块当作已存在
+    eachCell(function (x, y, t) { if (t) t.previousPosition = null; });
+    render();
+    // 重新设previousPosition
+    eachCell(function (x, y, t) { if (t) t.savePosition(); });
+    showToast("🔄 棋盘已重排!");
+    save();
+    setTimeout(function () { skillCooldowns.shuffle = 0; updateSkillButtons(); }, 800);
+  }
+
+  // 游戏面板点击(瞄准模式)
+  gameEl.addEventListener("click", function (e) {
+    if (!targetingMode) return;
+    var tileEl = e.target.closest(".tile");
+    if (!tileEl) return;
+    // 从data属性获取网格位置
+    var gx = parseInt(tileEl.getAttribute("data-gx"));
+    var gy = parseInt(tileEl.getAttribute("data-gy"));
+    if (isNaN(gx) || isNaN(gy)) return;
+    var tile = grid[gx] && grid[gx][gy];
+    if (!tile) return;
+    if (targetingMode === "bomb") {
+      executeBomb(tile);
+    } else if (targetingMode === "upgrade") {
+      executeUpgrade(tile);
+    }
+    cancelTargeting();
+    e.stopPropagation();
+  });
+
+  // ============ 提示 ============
+  function simulateMove(dir) {
+    var v = VECTORS[dir];
+    var tr = buildTraversals(v);
+    var moved = false, gain = 0, merges = 0;
+    var sim = [];
+    for (var x = 0; x < SIZE; x++) { sim[x] = []; for (var y = 0; y < SIZE; y++) sim[x][y] = grid[x][y] ? grid[x][y].value : 0; }
+    var merged = [];
+    for (var x = 0; x < SIZE; x++) { merged[x] = []; for (var y = 0; y < SIZE; y++) merged[x][y] = false; }
+
+    tr.x.forEach(function (x) {
+      tr.y.forEach(function (y) {
+        if (!sim[x][y]) return;
+        var val = sim[x][y], cx = x, cy = y, px, py;
+        do { px = cx; py = cy; cx += v.x; cy += v.y; } while (within(cx, cy) && !sim[cx][cy]);
+        if (within(cx, cy) && sim[cx][cy] === val && !merged[cx][cy]) {
+          sim[cx][cy] = val * 2; sim[x][y] = 0; merged[cx][cy] = true; gain += val * 2; merges++; moved = true;
+        } else if (px !== x || py !== y) { sim[px][py] = val; sim[x][y] = 0; moved = true; }
+      });
+    });
+
+    var emptyCount = 0, maxTile = 0, smoothness = 0, cornerBonus = 0, mergeOpportunities = 0;
+    for (var x = 0; x < SIZE; x++) {
+      for (var y = 0; y < SIZE; y++) {
+        if (!sim[x][y]) { emptyCount++; continue; }
+        var val = sim[x][y];
+        if (val > maxTile) maxTile = val;
+        if ((x === 0 || x === SIZE-1) && (y === 0 || y === SIZE-1)) cornerBonus += val * 2;
+        if (x < SIZE-1 && sim[x+1][y]) smoothness -= Math.abs(val - sim[x+1][y]);
+        if (y < SIZE-1 && sim[x][y+1]) smoothness -= Math.abs(val - sim[x][y+1]);
+        if (x < SIZE-1 && sim[x+1][y] === val) mergeOpportunities++;
+        if (y < SIZE-1 && sim[x][y+1] === val) mergeOpportunities++;
+      }
+    }
+    var monoLeft = 0, monoRight = 0, monoUp = 0, monoDown = 0;
+    for (var x = 0; x < SIZE; x++)
+      for (var y = 0; y < SIZE-1; y++) {
+        if (sim[x][y] && sim[x][y+1]) {
+          if (sim[x][y] >= sim[x][y+1]) monoRight += Math.log2(sim[x][y]) - Math.log2(sim[x][y+1]);
+          if (sim[x][y] <= sim[x][y+1]) monoLeft += Math.log2(sim[x][y+1]) - Math.log2(sim[x][y]);
+        }
+      }
+    for (var y = 0; y < SIZE; y++)
+      for (var x = 0; x < SIZE-1; x++) {
+        if (sim[x][y] && sim[x+1][y]) {
+          if (sim[x][y] >= sim[x+1][y]) monoDown += Math.log2(sim[x][y]) - Math.log2(sim[x+1][y]);
+          if (sim[x][y] <= sim[x+1][y]) monoUp += Math.log2(sim[x+1][y]) - Math.log2(sim[x][y]);
+        }
+      }
+    var monotonicity = Math.max(monoLeft+monoUp, monoLeft+monoDown, monoRight+monoUp, monoRight+monoDown);
+    var scoreResult = emptyCount * 270 + cornerBonus + smoothness * 0.5 + monotonicity * 40 + mergeOpportunities * 50 + merges * 200 + gain * 0.8;
+    if (!moved) return null;
+    return { score: scoreResult, moved: moved };
+  }
+
+  function getHint() {
+    if (over) return -1;
+    var bestDir = -1, bestScore = -Infinity;
+    for (var d = 0; d < 4; d++) {
+      var result = simulateMove(d);
+      if (result && result.score > bestScore) { bestScore = result.score; bestDir = d; }
+    }
+    return bestDir;
+  }
+
+  function showHint() {
+    var dir = getHint();
+    if (dir < 0) { showToast("无法提供建议"); return; }
+    clearHint();
+    var name = DIR_NAMES[dir];
+    if (name === "up") hintUp.classList.add("show");
+    else if (name === "down") hintDown.classList.add("show");
+    else if (name === "left") hintLeft.classList.add("show");
+    else if (name === "right") hintRight.classList.add("show");
+    highlightMerges();
+    hintTimer = setTimeout(clearHint, 2500);
+  }
+
+  function clearHint() {
+    clearTimeout(hintTimer);
+    hintUp.classList.remove("show");
+    hintDown.classList.remove("show");
+    hintLeft.classList.remove("show");
+    hintRight.classList.remove("show");
+    var tiles = gameEl.querySelectorAll(".tile.can-merge");
+    tiles.forEach(function (n) { n.classList.remove("can-merge"); });
+  }
+
+  function highlightMerges() {
+    for (var x = 0; x < SIZE; x++)
+      for (var y = 0; y < SIZE; y++) {
+        if (!grid[x][y]) continue;
+        var val = grid[x][y].value;
+        var hasNeighbor = false;
+        if (x < SIZE-1 && grid[x+1][y] && grid[x+1][y].value === val) hasNeighbor = true;
+        if (y < SIZE-1 && grid[x][y+1] && grid[x][y+1].value === val) hasNeighbor = true;
+        if (x > 0 && grid[x-1][y] && grid[x-1][y].value === val) hasNeighbor = true;
+        if (y > 0 && grid[x][y-1] && grid[x][y-1].value === val) hasNeighbor = true;
+        if (!hasNeighbor) continue;
+        var tiles = gameEl.querySelectorAll('.tile[data-gx="'+x+'"][data-gy="'+y+'"]');
+        tiles.forEach(function (n) { n.classList.add("can-merge"); });
+      }
+  }
+
+  // ============ 渲染 ============
+  function buildBackground() {
+    for (var x = 0; x < SIZE; x++)
+      for (var y = 0; y < SIZE; y++) {
+        var c = document.createElement("div"); c.className = "cell";
+        c.style.setProperty("--x", x); c.style.setProperty("--y", y);
+        gameEl.appendChild(c);
+      }
+  }
+
+  function render() {
+    var old = gameEl.querySelectorAll(".tile");
+    old.forEach(function (n) { n.remove(); });
+
+    var toRender = [];
+    eachCell(function (x, y, t) {
+      if (!t) return;
+      if (t.mergedFrom) t.mergedFrom.forEach(function (src) { toRender.push({ tile: src, ghost: true }); });
+      toRender.push({ tile: t, ghost: false });
+    });
+
+    toRender.forEach(function (item) {
+      var t = item.tile;
+      var node = document.createElement("div");
+      node.className = "tile";
+      node.setAttribute("data-value", t.value);
+      // 记录网格坐标(用于瞄准模式)
+      node.setAttribute("data-gx", t.x);
+      node.setAttribute("data-gy", t.y);
+
+      var sx = t.previousPosition ? t.previousPosition.x : t.x;
+      var sy = t.previousPosition ? t.previousPosition.y : t.y;
+      node.style.setProperty("--x", sx);
+      node.style.setProperty("--y", sy);
+      node.innerHTML = '<div class="tile-inner">' + t.value + '</div>';
+      gameEl.appendChild(node);
+
+      var target = node;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          target.style.setProperty("--x", t.x);
+          target.style.setProperty("--y", t.y);
+        });
+      });
+
+      if (item.ghost) {
+        target.style.zIndex = "1";
+        target.style.transition = "left 0.13s ease-in-out, top 0.13s ease-in-out, opacity 0.1s ease 0.11s";
+        setTimeout(function () { target.style.opacity = "0"; }, 20);
+      } else if (t.mergedFrom) {
+        node.classList.add("merged");
+      } else if (!t.previousPosition) {
+        node.classList.add("new");
+      }
+    });
+
+    scoreEl.textContent = score;
+    bestEl.textContent = best;
+  }
+
+  function animateScore(gain) {
+    var span = document.createElement("span");
+    span.className = "addition";
+    span.textContent = "+" + gain;
+    scoreEl.appendChild(span);
+    setTimeout(function () { span.remove(); }, 600);
+  }
+
+  // ============ 结算 ============
+  function showMessage(isWin) {
+    messageEl.classList.add("show");
+    if (isWin) {
+      messageEl.classList.remove("lower");
+      messageText.textContent = "🎉 胜利!";
+      messageSub.textContent = "你达到了 2048! 得分: " + score;
+      retryBtn.textContent = "继续挑战";
+    } else {
+      messageEl.classList.add("lower");
+      messageText.textContent = "游戏结束";
+      messageSub.textContent = "本局得分 " + score;
+      retryBtn.textContent = "再来一局";
+    }
+  }
+  function hideMessage() { messageEl.classList.remove("show"); }
+
+  // ============ 存档 ============
+  function save() {
+    var state = [];
+    eachCell(function (x, y, t) { if (t) state.push({ x: x, y: y, value: t.value }); });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ tiles: state, score: score, won: won, keep: keepPlaying, energy: energy, combo: comboCount }));
+  }
+  function load() {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    try {
+      var s = JSON.parse(raw);
+      grid = emptyGrid();
+      s.tiles.forEach(function (c) {
+        var t = new Tile(c.value, c.x, c.y);
+        t.savePosition();
+        grid[c.x][c.y] = t;
+      });
+      score = s.score || 0;
+      won = !!s.won;
+      keepPlaying = !!s.keep;
+      energy = s.energy || 0;
+      comboCount = s.combo || 0;
+      return s.tiles.length > 0;
+    } catch (e) { return false; }
+  }
+
+  // ============ 输入 ============
+  var KEYMAP = { 37: 3, 38: 0, 39: 1, 40: 2, 72: 3, 74: 2, 75: 0, 76: 1 };
+  document.addEventListener("keydown", function (e) {
+    // Ctrl+Z 撤销
+    if ((e.ctrlKey || e.metaKey) && (e.keyCode === 90 || e.key === "z" || e.key === "Z")) {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      undo(); e.preventDefault(); return;
+    }
+    // H 提示
+    if (!e.ctrlKey && !e.metaKey && (e.keyCode === 72 || e.key === "h" || e.key === "H")) {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      showHint(); e.preventDefault(); return;
+    }
+    // 1/2/3 技能快捷键
+    if (!e.ctrlKey && !e.metaKey && e.key === "1") { activateSkill("bomb"); e.preventDefault(); return; }
+    if (!e.ctrlKey && !e.metaKey && e.key === "2") { activateSkill("shuffle"); e.preventDefault(); return; }
+    if (!e.ctrlKey && !e.metaKey && e.key === "3") { activateSkill("upgrade"); e.preventDefault(); return; }
+    // ESC 取消瞄准
+    if (e.key === "Escape" && targetingMode) { cancelTargeting(); e.preventDefault(); return; }
+
+    var dir = KEYMAP[e.which] || KEYMAP[e.keyCode];
+    if (dir === undefined) return;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    move(dir);
+    e.preventDefault();
+  });
+
+  function activateSkill(name) {
+    if (over) return;
+    if (name === "bomb") {
+      if (energy < 25 || skillCooldowns.bomb > 0) { showToast(energy < 25 ? "能量不足!" : "冷却中..."); return; }
+      enterTargeting("bomb");
+    } else if (name === "shuffle") {
+      if (energy < 40 || skillCooldowns.shuffle > 0) { showToast(energy < 40 ? "能量不足!" : "冷却中..."); return; }
+      executeShuffle();
+    } else if (name === "upgrade") {
+      if (energy < 60 || skillCooldowns.upgrade > 0) { showToast(energy < 60 ? "能量不足!" : "冷却中..."); return; }
+      enterTargeting("upgrade");
+    }
+  }
+
+  // 触摸
+  var tsx = 0, tsy = 0, tracking = false;
+  gameEl.addEventListener("touchstart", function (e) {
+    if (e.touches.length !== 1) return;
+    tracking = true;
+    tsx = e.touches[0].clientX; tsy = e.touches[0].clientY;
+  }, { passive: true });
+  gameEl.addEventListener("touchmove", function (e) { if (tracking) e.preventDefault(); }, { passive: false });
+  gameEl.addEventListener("touchend", function (e) {
+    if (!tracking) return;
+    tracking = false;
+    var dx = e.changedTouches[0].clientX - tsx;
+    var dy = e.changedTouches[0].clientY - tsy;
+    var absX = Math.abs(dx), absY = Math.abs(dy);
+    if (Math.max(absX, absY) < 20) return;
+    if (absX > absY) move(dx > 0 ? 1 : 3);
+    else move(dy > 0 ? 2 : 0);
+  });
+
+  // 鼠标拖拽
+  var md = null;
+  gameEl.addEventListener("mousedown", function (e) { md = { x: e.clientX, y: e.clientY }; });
+  window.addEventListener("mouseup", function (e) {
+    if (!md) return;
+    var dx = e.clientX - md.x, dy = e.clientY - md.y;
+    md = null;
+    var absX = Math.abs(dx), absY = Math.abs(dy);
+    if (Math.max(absX, absY) < 20) return;
+    if (absX > absY) move(dx > 0 ? 1 : 3);
+    else move(dy > 0 ? 2 : 0);
+  });
+
+  // ============ 按钮事件 ============
+  document.getElementById("newGame").addEventListener("click", startNew);
+  undoBtn.addEventListener("click", undo);
+  hintBtn.addEventListener("click", showHint);
+  easyBtn.addEventListener("click", toggleEasyMode);
+  skillBomb.addEventListener("click", function () { activateSkill("bomb"); });
+  skillShuffle.addEventListener("click", function () { activateSkill("shuffle"); });
+  skillUpgrade.addEventListener("click", function () { activateSkill("upgrade"); });
+  retryBtn.addEventListener("click", function () {
+    if (won && !over) { keepPlaying = true; won = false; hideMessage(); save(); }
+    else startNew();
+  });
+
+  document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+  document.addEventListener("dblclick", function (e) { e.preventDefault(); });
+
+  // ============ 启动 ============
+  best = +(localStorage.getItem(BEST_KEY) || 0);
+  loadSettings();
+  buildBackground();
+  if (!load()) {
+    startNew();
+  } else {
+    bestEl.textContent = best;
+    updateEnergyUI();
+    render();
+  }
+  updateUndoBadge();
+})();
+</script>
+</body>
+</html>
