@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a2e">
+<title>贪吃蛇·爆裂版</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;font-family:"PingFang SC","Microsoft YaHei",sans-serif;color:#e0d8c8;background:#1a1a2e;overflow-x:hidden;-webkit-user-select:none;user-select:none}
+  body{display:flex;justify-content:center;align-items:flex-start;min-height:100dvh;padding:env(safe-area-inset-top)0 env(safe-area-inset-bottom)}
+  .container{width:100%;max-width:480px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+
+  header{display:flex;justify-content:space-between;align-items:center}
+  .title{font-size:28px;font-weight:900;background:linear-gradient(135deg,#f65e3b,#edc22e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .scores{display:flex;gap:5px}
+  .score-box{background:rgba(255,255,255,0.06);border-radius:6px;padding:4px 10px;min-width:55px;text-align:center;border:1px solid rgba(255,255,255,0.1)}
+  .score-box .label{font-size:8px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px}
+  .score-box .value{font-size:18px;font-weight:900;color:#fff;line-height:1.1}
+
+  /* 难度选择 */
+  .diff-row{display:flex;gap:6px}
+  .diff-btn{flex:1;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:all 0.2s;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)}
+  .diff-btn.active.easy{background:rgba(76,175,80,0.2);border-color:#4CAF50;color:#4CAF50}
+  .diff-btn.active.normal{background:rgba(237,207,114,0.2);border-color:#edcf72;color:#edcf72}
+  .diff-btn.active.hard{background:rgba(246,94,59,0.2);border-color:#f65e3b;color:#f65e3b}
+
+  /* 道具状态栏 */
+  .buffs{display:flex;gap:4px;min-height:20px;align-items:center}
+  .buff-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;animation:fadeIn 0.3s}
+  .buff-tag.shield{background:rgba(100,180,255,0.3);color:#64b4ff}
+  .buff-tag.magnet{background:rgba(237,194,46,0.3);color:#edc22e}
+  .buff-tag.slow{background:rgba(76,175,80,0.3);color:#4CAF50}
+  .buff-tag.ghost{background:rgba(200,150,255,0.3);color:#c896ff}
+  @keyframes fadeIn{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+
+  .toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .btn{background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+  .btn:active{transform:scale(0.93)}
+  .btn.primary{background:#f65e3b;border-color:#f65e3b}
+  .btn.bomb-btn{background:rgba(255,180,0,0.15);border-color:rgba(255,180,0,0.4)}
+  .btn.bomb-btn.armed{animation:pulse 0.5s ease-in-out infinite;background:rgba(255,80,0,0.35);border-color:#f65e3b}
+  @keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(246,94,59,0.3)}50%{box-shadow:0 0 20px rgba(246,94,59,0.7)}}
+  .intro-text{flex:1;min-width:0}
+  .intro-text strong{font-size:12px;font-weight:700}
+  .intro-text p{font-size:8px;color:rgba(255,255,255,0.3)}
+
+  .game-wrap{position:relative;width:100%;aspect-ratio:1/1;background:rgba(255,255,255,0.03);border-radius:10px;touch-action:none;overflow:hidden;border:1px solid rgba(255,255,255,0.08);transition:border-color 0.15s}
+  .game-wrap.flash{border-color:#f65e3b;box-shadow:0 0 25px rgba(246,94,59,0.25)}
+  canvas{display:block;width:100%;height:100%;border-radius:10px}
+
+  .game-overlay{position:absolute;inset:0;background:rgba(26,26,46,0.9);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;opacity:0;pointer-events:none;transition:opacity 0.3s;z-index:10;text-align:center;padding:20px}
+  .game-overlay.show{opacity:1;pointer-events:auto}
+  .game-overlay .msg{font-size:28px;font-weight:900;color:#fff}
+  .game-overlay .msg-sub{font-size:12px;color:rgba(255,255,255,0.4);font-weight:600;line-height:1.6}
+
+  .footer-tip{text-align:center;font-size:9px;color:rgba(255,255,255,0.25)}
+  .footer-tip kbd{background:rgba(255,255,255,0.1);color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;margin:0 1px}
+
+  /* 能量条 */
+  .energy-row{display:flex;align-items:center;gap:6px}
+  .energy-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);white-space:nowrap}
+  .energy-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden}
+  .energy-bar{height:100%;background:linear-gradient(90deg,#f65e3b,#edc22e);border-radius:4px;transition:width 0.3s;width:0}
+  .energy-bar.full{animation:epulse 0.5s ease-in-out infinite alternate}
+  @keyframes epulse{from{filter:brightness(1)}to{filter:brightness(1.4)}}
+  .energy-num{font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);min-width:36px;text-align:right}
+
+  /* 技能按钮 */
+  .skills-row{display:flex;gap:6px}
+  .skill-btn{flex:1;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:7px 4px;font-size:10px;font-weight:700;cursor:pointer;text-align:center;transition:all 0.2s;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);display:flex;flex-direction:column;align-items:center;gap:1px;position:relative}
+  .skill-btn .s-icon{font-size:16px}
+  .skill-btn .s-cost{font-size:8px;opacity:0.7}
+  .skill-btn:disabled{opacity:0.35;cursor:not-allowed;filter:grayscale(0.3)}
+  .skill-btn:disabled:active{transform:none}
+  .skill-btn.ready{animation:spulse 1.5s ease-in-out infinite}
+  .skill-dash{border-color:rgba(246,94,59,0.4);color:#f65e3b}.skill-dash.ready{box-shadow:0 0 10px rgba(246,94,59,0.4)}
+  .skill-nuke{border-color:rgba(255,136,0,0.4);color:#f80}.skill-nuke.ready{box-shadow:0 0 10px rgba(255,136,0,0.4)}
+  .skill-spawn{border-color:rgba(237,194,46,0.4);color:#edc22e}.skill-spawn.ready{box-shadow:0 0 10px rgba(237,194,46,0.4)}
+  @keyframes spulse{0%,100%{box-shadow:0 0 4px currentColor}50%{box-shadow:0 0 14px currentColor}}
+
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.8);background:rgba(0,0,0,0.85);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:800;pointer-events:none;opacity:0;transition:all 0.2s;z-index:100;letter-spacing:1px;text-align:center}
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="title">💣 蛇蛇爆破手</div>
+    <div class="scores">
+      <div class="score-box"><div class="label">分数</div><div class="value" id="score">0</div></div>
+      <div class="score-box"><div class="label">最高</div><div class="value" id="best">0</div></div>
+    </div>
+  </header>
+
+  <div class="diff-row">
+    <button class="diff-btn easy active" data-diff="0">🟢 简单</button>
+    <button class="diff-btn normal" data-diff="1">🟡 普通</button>
+    <button class="diff-btn hard" data-diff="2">🔴 困难</button>
+  </div>
+
+  <div class="buffs" id="buffs"></div>
+
+  <!-- 能量条 -->
+  <div class="energy-row">
+    <span class="energy-label">⚡ 能量</span>
+    <div class="energy-bar-wrap"><div class="energy-bar" id="energyBar"></div></div>
+    <span class="energy-num" id="energyNum">0/100</span>
+  </div>
+
+  <!-- 技能栏 -->
+  <div class="skills-row">
+    <button class="skill-btn skill-dash" id="skillDash" disabled>
+      <span class="s-icon">⚡</span>冲刺
+      <span class="s-cost">30⚡ 加速+穿墙3秒</span>
+    </button>
+    <button class="skill-btn skill-spawn" id="skillSpawn" disabled>
+      <span class="s-icon">✨</span>唤食
+      <span class="s-cost">20⚡ 刷新4个食物</span>
+    </button>
+    <button class="skill-btn skill-nuke" id="skillNuke" disabled>
+      <span class="s-icon">💥</span>全爆
+      <span class="s-cost">60⚡ 炸毁所有障碍</span>
+    </button>
+  </div>
+
+  <div class="toolbar">
+    <div class="intro-text">
+      <strong>吃道具 → 引爆尾巴 → 炸障碍!</strong>
+      <p>方向键/滑动 · 空格引爆</p>
+    </div>
+    <button class="btn bomb-btn" id="bombBtn">💣 引爆</button>
+    <button class="btn primary" id="restartBtn">新游戏</button>
+  </div>
+
+  <div class="game-wrap" id="gameWrap">
+    <canvas id="canvas"></canvas>
+    <div class="game-overlay show" id="overlay">
+      <div class="msg">💣 蛇蛇爆破手</div>
+      <div class="msg-sub">⚡炸弹武装 · 🛡护盾 · 🧲磁铁 · 🐌减速 · 👻穿墙<br>滑动移动 · 空格/点按钮引爆</div>
+      <button class="btn primary" id="startOverlay">开始游戏</button>
+    </div>
+  </div>
+
+  <div class="footer-tip">
+    <kbd>↑↓←→</kbd>移动 &nbsp;|&nbsp; <kbd>空格</kbd>引爆 &nbsp;|&nbsp; <kbd>1</kbd>冲刺 <kbd>2</kbd>唤食 <kbd>3</kbd>全爆
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var GRID=16;
+  var canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
+  var gameWrap=document.getElementById("gameWrap"),overlay=document.getElementById("overlay");
+  var scoreEl=document.getElementById("score"),bestEl=document.getElementById("best");
+  var bombBtn=document.getElementById("bombBtn"),buffsEl=document.getElementById("buffs");
+  var toastEl=document.getElementById("toast");
+  var energyBar=document.getElementById("energyBar"),energyNum=document.getElementById("energyNum");
+  var skillDash=document.getElementById("skillDash"),skillSpawn=document.getElementById("skillSpawn"),skillNuke=document.getElementById("skillNuke");
+
+  // 难度配置
+  var DIFFS=[
+    {name:"简单",baseSpd:200,accel:8,obs:1,obsRespawn:1,foodSpawn:3,color:"#4CAF50"},
+    {name:"普通",baseSpd:130,accel:5,obs:3,obsRespawn:2,foodSpawn:2,color:"#edcf72"},
+    {name:"困难",baseSpd:85,accel:3,obs:5,obsRespawn:2,foodSpawn:2,color:"#f65e3b"},
+  ];
+  var diffLv=0, diff=DIFFS[0];
+
+  // 状态
+  var snake=[],foods=[],obstacles=[];
+  var dir={x:1,y:0},nextDir={x:1,y:0};
+  var score=0,best=0,loop=null,running=false,paused=false;
+  var bombArmed=0,comboCount=0,energy=0;
+  var particles=[],shakeAmount=0,cellSize=0;
+
+  // 道具效果
+  var buffs={shield:0,magnet:0,slow:0,ghost:0}; // 剩余tick
+
+  var audioCtx=null;
+  function sfx(f,d,t,g){try{
+    if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var o=audioCtx.createOscillator(),gn=audioCtx.createGain();
+    o.type=t||"square";o.frequency.value=f;
+    gn.gain.value=g||0.05;gn.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);
+    o.connect(gn);gn.connect(audioCtx.destination);
+    o.start();o.stop(audioCtx.currentTime+d);
+  }catch(e){}}
+
+  function init(){
+    best=+(localStorage.getItem("bomb_snake_v3_best")||0);bestEl.textContent=best;
+    resizeCanvas();window.addEventListener("resize",resizeCanvas);
+    setupInput();drawBoard();updateBombUI();updateBuffs();
+    document.querySelectorAll(".diff-btn").forEach(function(b){b.addEventListener("click",switchDiff)});
+  }
+  function resizeCanvas(){
+    var r=gameWrap.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+    canvas.width=r.width*dpr;canvas.height=r.height*dpr;
+    canvas.style.width=r.width+"px";canvas.style.height=r.height+"px";
+    ctx.setTransform(1,0,0,1,0,0);ctx.scale(dpr,dpr);
+    cellSize=r.width/GRID;if(running)drawAll();
+  }
+
+  function switchDiff(e){
+    var lv=parseInt(this.getAttribute("data-diff"));
+    diffLv=lv;diff=DIFFS[lv];
+    document.querySelectorAll(".diff-btn").forEach(function(b){b.classList.remove("active","easy","normal","hard")});
+    this.classList.add("active",["easy","normal","hard"][lv]);
+    if(running){startLoop();updateBombUI();}
+    showToast(diff.name+"模式");
+  }
+
+  // ============ 游戏逻辑 ============
+  function startGame(){
+    snake=[];var cx=Math.floor(GRID/2),cy=Math.floor(GRID/2);
+    for(var i=0;i<4;i++)snake.push({x:cx-i,y:cy});
+    dir={x:1,y:0};nextDir={x:1,y:0};
+    score=0;comboCount=0;bombArmed=0;energy=30;
+    buffs={shield:0,magnet:0,slow:0,ghost:0};
+    particles=[];shakeAmount=0;
+    foods=[];obstacles=[];
+    spawnFoods(diff.foodSpawn);
+    spawnObstacles(diff.obs);
+    overlay.classList.remove("show");
+    running=true;paused=false;
+    scoreEl.textContent="0";
+    updateBombUI();updateBuffs();updateEnergy();
+    startLoop();
+  }
+
+  function startLoop(){stopLoop();loop=setInterval(tick,getSpeed())}
+  function stopLoop(){if(loop){clearInterval(loop);loop=null;}}
+  function getSpeed(){
+    var b=diff.baseSpd;
+    var reduce=Math.floor(score/diff.accel)*3;
+    if(buffs.slow>0)reduce+=40;
+    return Math.max(50,b-reduce);
+  }
+
+  function spawnFoods(n){
+    for(var j=0;j<n;j++){
+      var empty=[];for(var x=0;x<GRID;x++)for(var y=0;y<GRID;y++){if(!isOccupied(x,y))empty.push({x,y})}
+      if(empty.length>0){var pos=empty[Math.floor(Math.random()*empty.length)];var type=randType();foods.push({x:pos.x,y:pos.y,type:type})}
+    }
+  }
+  function randType(){var r=Math.random();if(r<0.2)return"bomb";if(r<0.3)return"shield";if(r<0.38)return"magnet";if(r<0.45)return"slow";if(r<0.5)return"ghost";return"normal"}
+  function eatFoodEffect(f){
+    switch(f.type){
+      case"bomb":bombArmed+=3;sfx(800,0.1,"square",0.07);spawnParticles(f.x,f.y,"#f65e3b",10);comboCount++;break
+      case"shield":buffs.shield=60;sfx(500,0.1,"triangle");spawnParticles(f.x,f.y,"#64b4ff",8);showToast("🛡 护盾!");break
+      case"magnet":buffs.magnet=60;sfx(700,0.1,"sine");spawnParticles(f.x,f.y,"#edc22e",10);showToast("🧲 磁铁!");break
+      case"slow":buffs.slow=50;sfx(400,0.15,"sine");spawnParticles(f.x,f.y,"#4CAF50",8);showToast("🐌 减速!");break
+      case"ghost":buffs.ghost=35;sfx(300,0.15,"sine");spawnParticles(f.x,f.y,"#c896ff",8);showToast("👻 穿墙!");break
+      default:score+=1;spawnParticles(f.x,f.y,"#edc22e",5);sfx(500,0.05,"square",0.04)
+    }
+    energy=Math.min(100,energy+5);updateEnergy();
+  }
+
+  // 能量系统
+  function updateEnergy(){energyBar.style.width=energy+"%";energyNum.textContent=energy+"/100";if(energy>=100)energyBar.classList.add("full");else energyBar.classList.remove("full");updateSkills();}
+  function updateSkills(){
+    skillDash.disabled=energy<30||!running;skillDash.classList.toggle("ready",!skillDash.disabled);
+    skillSpawn.disabled=energy<20||!running;skillSpawn.classList.toggle("ready",!skillSpawn.disabled);
+    skillNuke.disabled=energy<60||!running;skillNuke.classList.toggle("ready",!skillNuke.disabled);
+  }
+
+  // 技能1: 冲刺 (30能量) - 3秒加速+穿墙
+  function skillBoost(){
+    if(energy<30||!running)return;
+    energy-=30;updateEnergy();
+    buffs.slow=0; // 清除减速
+    buffs.ghost+=30;
+    // 临时加速: 提高速度档
+    var origSpd=diff.baseSpd;diff.baseSpd=Math.max(30,diff.baseSpd-60);
+    spawnParticles(snake[0].x,snake[0].y,"#f65e3b",15);
+    sfx(900,0.2,"triangle",0.08);
+    showToast("⚡ 冲刺! 加速+穿墙 3秒");
+    startLoop();
+    // 恢复速度
+    setTimeout(function(){diff.baseSpd=origSpd;if(running)startLoop()},3000);
+  }
+
+  // 技能2: 唤食 (20能量) - 刷新食物
+  function skillSpawnFood(){
+    if(energy<20||!running)return;
+    energy-=20;updateEnergy();
+    foods=[];spawnFoods(4);
+    spawnParticles(snake[0].x,snake[0].y,"#edc22e",12);
+    sfx(600,0.15,"sine",0.06);
+    showToast("✨ 食物刷新!");
+  }
+
+  // 技能3: 全爆 (60能量) - 炸毁所有障碍
+  function skillNukeAll(){
+    if(energy<60||!running)return;
+    energy-=60;updateEnergy();
+    var cnt=obstacles.length;
+    for(var i=obstacles.length-1;i>=0;i--){
+      var o=obstacles[i];
+      foods.push({x:o.x,y:o.y,type:randType()});
+      spawnParticles(o.x,o.y,"#ff8800",8);
+    }
+    obstacles=[];
+    comboCount+=cnt;score+=cnt*2;
+    shakeAmount=10;
+    gameWrap.classList.add("flash");setTimeout(function(){gameWrap.classList.remove("flash")},200);
+    sfx(50,0.5,"sawtooth",0.15);
+    showToast("💥 全爆! "+cnt+"个障碍→食物");
+    if(score>best){best=score;bestEl.textContent=best;localStorage.setItem("bomb_snake_v3_best",best)}
+    scoreEl.textContent=score;
+  }
+
+  function spawnObstacles(n){for(var j=0;j<n;j++)spawnOneObstacle()}
+  function spawnOneObstacle(){
+    var empty=[],head=snake[0];
+    for(var x=2;x<GRID-2;x++)for(var y=2;y<GRID-2;y++){if(!isOccupied(x,y)&&Math.abs(x-head.x)+Math.abs(y-head.y)>7)empty.push({x,y})}
+    if(empty.length>0)obstacles.push(empty[Math.floor(Math.random()*empty.length)]);
+  }
+
+  function isOccupied(x,y){
+    for(var i=0;i<snake.length;i++)if(snake[i].x===x&&snake[i].y===y)return true;
+    for(var i=0;i<foods.length;i++)if(foods[i].x===x&&foods[i].y===y)return true;
+    for(var i=0;i<obstacles.length;i++)if(obstacles[i].x===x&&obstacles[i].y===y)return true;
+    return false;
+  }
+
+  function tick(){
+    if(!running||paused)return;
+
+    dir={x:nextDir.x,y:nextDir.y};
+    var head=snake[0];
+    var nh={x:head.x+dir.x,y:head.y+dir.y};
+
+    // 道具倒计时
+    for(var k in buffs){if(buffs[k]>0)buffs[k]--}
+    if(buffs.magnet>0)attractFood();
+
+    // 穿墙
+    var ghost=buffs.ghost>0;
+
+    // 碰墙
+    if(nh.x<0||nh.x>=GRID||nh.y<0||nh.y>=GRID){
+      if(!ghost){die();return}else{nh.x=((nh.x%GRID)+GRID)%GRID;nh.y=((nh.y%GRID)+GRID)%GRID}
+    }
+    // 碰自己
+    for(var i=0;i<snake.length;i++)if(snake[i].x===nh.x&&snake[i].y===nh.y){die();return}
+    // 碰障碍
+    for(var i=0;i<obstacles.length;i++){
+      if(obstacles[i].x===nh.x&&obstacles[i].y===nh.y){
+        if(buffs.shield>0){buffs.shield=0;obstacles.splice(i,1);spawnParticles(nh.x,nh.y,"#64b4ff",10);sfx(600,0.1,"triangle");updateBuffs();break}
+        else if(!ghost){die();return}
+      }
+    }
+
+    snake.unshift(nh);
+
+    // 吃食物
+    var ate=false;
+    for(var i=foods.length-1;i>=0;i--){
+      if(nh.x===foods[i].x&&nh.y===foods[i].y){
+        var f=foods[i];
+        eatFoodEffect(f);
+        foods.splice(i,1);ate=true;
+      }
+    }
+
+    if(ate){if(foods.length<2)spawnFoods(diff.foodSpawn-foods.length+Math.floor(Math.random()*2))}
+    else snake.pop();
+
+    if(bombArmed>snake.length-1)bombArmed=Math.max(0,snake.length-1);
+    scoreEl.textContent=score;
+    if(score>best){best=score;bestEl.textContent=best;localStorage.setItem("bomb_snake_v3_best",best)}
+
+    updateBombUI();updateBuffs();
+    if(shakeAmount>0){shakeAmount*=0.82;if(shakeAmount<0.2)shakeAmount=0}
+    updateParticles();
+    drawAll();
+  }
+
+  function attractFood(){
+    var head=snake[0], ate=0;
+    for(var i=foods.length-1;i>=0;i--){
+      var f=foods[i],dx=f.x-head.x,dy=f.y-head.y,dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<3){
+        // 磁铁: 范围内直接吸过来吃掉!
+        eatFoodEffect(f);
+        foods.splice(i,1);
+        ate++;
+      }
+    }
+    // 视觉: 蛇头放吸收粒子
+    if(ate>0)spawnParticles(head.x,head.y,"#edc22e",ate*5);
+    // 补充食物
+    while(foods.length<2)spawnFoods(1);
+  }
+
+  function detonate(){
+    if(!running||paused)return;
+    if(bombArmed<=0){showToast("先吃 ⚡炸弹 武装尾巴!");return}
+    var len=snake.length,boom=Math.min(bombArmed,len-1),combo=0;
+    for(var i=0;i<boom;i++){
+      var seg=snake[len-1-i];if(!seg)break;
+      var blasts=[{x:seg.x,y:seg.y},{x:seg.x-1,y:seg.y},{x:seg.x+1,y:seg.y},{x:seg.x,y:seg.y-1},{x:seg.x,y:seg.y+1},{x:seg.x-1,y:seg.y-1},{x:seg.x+1,y:seg.y-1},{x:seg.x-1,y:seg.y+1},{x:seg.x+1,y:seg.y+1}];
+      for(var b=0;b<blasts.length;b++){
+        var bp=blasts[b];if(bp.x<0||bp.x>=GRID||bp.y<0||bp.y>=GRID)continue;
+        for(var o=obstacles.length-1;o>=0;o--){
+          if(obstacles[o].x===bp.x&&obstacles[o].y===bp.y){obstacles.splice(o,1);combo++;score+=2;foods.push({x:bp.x,y:bp.y,type:randType()});spawnParticles(bp.x,bp.y,"#ff8800",7)}
+        }
+      }
+      spawnParticles(seg.x,seg.y,"#f65e3b",4);
+    }
+    snake=snake.slice(0,len-boom);bombArmed=0;
+    if(obstacles.length<diff.obsRespawn)spawnObstacles(diff.obsRespawn-obstacles.length);
+    comboCount+=combo;shakeAmount=6+combo*2;
+    sfx(60,0.35,"sawtooth",0.1);
+    gameWrap.classList.add("flash");setTimeout(function(){gameWrap.classList.remove("flash")},150);
+    if(combo>=3){showToast("💥 "+combo+" 连爆!");sfx(200+combo*50,0.2,"triangle",0.07)}
+    updateBombUI();updateBuffs();drawAll();
+  }
+
+  function die(){
+    running=false;stopLoop();sfx(100,0.5,"sawtooth",0.1);shakeAmount=12;drawAll();
+    setTimeout(function(){shakeAmount=0;drawAll();
+      overlay.innerHTML='<div class="msg">💀 阵亡</div><div class="msg-sub">得分 '+score+' | 连爆 '+comboCount+'</div><button class="btn primary" id="retryOverlay">再来一局</button>';
+      overlay.className="game-overlay show";document.getElementById("retryOverlay").addEventListener("click",startGame);
+    },250);
+    if(score>best){best=score;bestEl.textContent=best;localStorage.setItem("bomb_snake_v3_best",best)}
+  }
+
+  function updateBombUI(){if(bombArmed>0){bombBtn.classList.add("armed");bombBtn.textContent="💣 引爆("+bombArmed+")"}else{bombBtn.classList.remove("armed");bombBtn.textContent="💣 引爆"}}
+  function updateBuffs(){
+    var tags=[];
+    if(buffs.shield>0)tags.push('<span class="buff-tag shield">🛡 '+buffs.shield+'</span>');
+    if(buffs.magnet>0)tags.push('<span class="buff-tag magnet">🧲 '+buffs.magnet+'</span>');
+    if(buffs.slow>0)tags.push('<span class="buff-tag slow">🐌 '+buffs.slow+'</span>');
+    if(buffs.ghost>0)tags.push('<span class="buff-tag ghost">👻 '+buffs.ghost+'</span>');
+    buffsEl.innerHTML=tags.join("");
+  }
+
+  // ============ 渲染 ============
+  function drawBoard(){
+    var w=canvas.width/(window.devicePixelRatio||1),h=canvas.height/(window.devicePixelRatio||1);
+    ctx.clearRect(0,0,w,h);ctx.fillStyle="#1a1a2e";ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle="rgba(255,255,255,0.03)";ctx.lineWidth=0.5;
+    for(var i=0;i<=GRID;i++){ctx.beginPath();ctx.moveTo(i*cellSize,0);ctx.lineTo(i*cellSize,h);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*cellSize);ctx.lineTo(w,i*cellSize);ctx.stroke()}
+  }
+
+  function drawAll(){
+    var w=canvas.width/(window.devicePixelRatio||1),h=canvas.height/(window.devicePixelRatio||1);
+    ctx.clearRect(0,0,w,h);
+    var sx=0,sy=0;if(shakeAmount>0){sx=(Math.random()-0.5)*shakeAmount*1.5;sy=(Math.random()-0.5)*shakeAmount*1.5}
+    ctx.save();ctx.translate(sx,sy);
+    ctx.fillStyle=buffs.ghost>0?"#1a1a3e":"#1a1a2e";ctx.fillRect(-5,-5,w+10,h+10);
+
+    ctx.strokeStyle="rgba(255,255,255,0.03)";ctx.lineWidth=0.5;
+    for(var i=0;i<=GRID;i++){ctx.beginPath();ctx.moveTo(i*cellSize,0);ctx.lineTo(i*cellSize,h);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*cellSize);ctx.lineTo(w,i*cellSize);ctx.stroke()}
+
+    // 粒子
+    for(var i=0;i<particles.length;i++){var p=particles[i];ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x*cellSize,p.y*cellSize,p.size*cellSize,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1;
+
+    // 障碍
+    for(var i=0;i<obstacles.length;i++){var o=obstacles[i],ox=o.x*cellSize,oy=o.y*cellSize,p=cellSize*0.12;ctx.fillStyle="#2a2a3e";ctx.fillRect(ox+p,oy+p,cellSize-p*2,cellSize-p*2);ctx.strokeStyle="rgba(255,255,255,0.12)";ctx.lineWidth=1;ctx.strokeRect(ox+p,oy+p,cellSize-p*2,cellSize-p*2);ctx.strokeStyle="rgba(255,255,255,0.06)";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(ox+p*2,oy+p*2);ctx.lineTo(ox+cellSize-p*2,oy+cellSize-p*2);ctx.stroke();ctx.beginPath();ctx.moveTo(ox+cellSize-p*2,oy+p*2);ctx.lineTo(ox+p*2,oy+cellSize-p*2);ctx.stroke()}
+
+    // 食物
+    for(var i=0;i<foods.length;i++)drawFood(foods[i]);
+
+    // 蛇
+    if(snake.length>0)drawSnake();
+    ctx.restore();
+  }
+
+  function drawFood(f){
+    var fx=(f.x+0.5)*cellSize,fy=(f.y+0.5)*cellSize;
+    var icon="",tCol="";
+    switch(f.type){
+      case"bomb":icon="⚡";tCol="#f65e3b";break;case"shield":icon="🛡";tCol="#64b4ff";break;
+      case"magnet":icon="🧲";tCol="#edc22e";break;case"slow":icon="🐌";tCol="#4CAF50";break;
+      case"ghost":icon="👻";tCol="#c896ff";break;default:icon="";tCol="#edc22e"
+    }
+    var r=cellSize*0.38;
+    if(f.type==="normal"){
+      ctx.fillStyle="rgba(237,194,46,0.25)";ctx.beginPath();ctx.arc(fx,fy,r+2,0,Math.PI*2);ctx.fill();
+      var g=ctx.createRadialGradient(fx-r*0.2,fy-r*0.2,r*0.1,fx,fy,r);g.addColorStop(0,"#fef9e7");g.addColorStop(0.5,"#edc22e");g.addColorStop(1,"#b8860b");
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(fx,fy,r,0,Math.PI*2);ctx.fill();
+    }else{
+      var pulse=1+0.12*Math.sin(Date.now()/120);ctx.fillStyle=tCol;ctx.globalAlpha=0.35;ctx.beginPath();ctx.arc(fx,fy,r*pulse+3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+      ctx.fillStyle=tCol;ctx.beginPath();ctx.arc(fx,fy,r*pulse,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle="#fff";ctx.font=(cellSize*0.5)+"px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(icon,fx,fy);
+    }
+  }
+
+  function drawSnake(){
+    for(var i=snake.length-1;i>=0;i--){
+      var s=snake[i],sx2=s.x*cellSize,sy2=s.y*cellSize,p=cellSize*0.08,r=cellSize*0.3;
+      var armed=i>=snake.length-bombArmed;
+      if(i===0){
+        if(armed){ctx.fillStyle="rgba(246,94,59,0.4)";ctx.beginPath();ctx.arc(sx2+cellSize/2,sy2+cellSize/2,cellSize*0.5,0,Math.PI*2);ctx.fill()}
+        if(buffs.ghost>0){ctx.globalAlpha=0.6}
+        var hg=ctx.createLinearGradient(sx2,sy2,sx2+cellSize,sy2+cellSize);hg.addColorStop(0,"#4CAF50");hg.addColorStop(1,"#2E7D32");
+        ctx.fillStyle=hg;roundRect(sx2+p,sy2+p,cellSize-p*2,cellSize-p*2,r+2);
+        var ex,ey,ex2,ey2;
+        if(dir.x===1){ex=sx2+cellSize*0.7;ey=sy2+cellSize*0.25;ex2=sx2+cellSize*0.7;ey2=sy2+cellSize*0.75}
+        else if(dir.x===-1){ex=sx2+cellSize*0.3;ey=sy2+cellSize*0.25;ex2=sx2+cellSize*0.3;ey2=sy2+cellSize*0.75}
+        else if(dir.y===-1){ex=sx2+cellSize*0.25;ey=sy2+cellSize*0.3;ex2=sx2+cellSize*0.75;ey2=sy2+cellSize*0.3}
+        else{ex=sx2+cellSize*0.25;ey=sy2+cellSize*0.7;ex2=sx2+cellSize*0.75;ey2=sy2+cellSize*0.7}
+        ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ex,ey,cellSize*0.12,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(ex2,ey2,cellSize*0.12,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle="#111";ctx.beginPath();ctx.arc(ex,ey,cellSize*0.06,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(ex2,ey2,cellSize*0.06,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;
+      }else{
+        var ratio=i/(snake.length-1);
+        var cr=Math.floor(76+(56-76)*ratio),cg=Math.floor(175+(142-175)*ratio),cb=Math.floor(80+(68-80)*ratio);
+        if(armed){cr=Math.min(255,cr+50);cg=Math.max(50,cg-15)}
+        if(buffs.ghost>0)ctx.globalAlpha=0.5;
+        ctx.fillStyle="rgb("+cr+","+cg+","+cb+")";roundRect(sx2+p+1.5,sy2+p+1.5,cellSize-(p+1.5)*2,cellSize-(p+1.5)*2,r-1);
+        ctx.globalAlpha=1;
+      }
+    }
+  }
+
+  function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();ctx.fill()}
+
+  function spawnParticles(gx,gy,color,count){for(var i=0;i<count;i++)particles.push({x:gx+0.5,y:gy+0.5,vx:(Math.random()-0.5)*0.55,vy:(Math.random()-0.5)*0.55,size:0.03+Math.random()*0.1,color:color,life:1,maxLife:1,decay:0.02+Math.random()*0.05})}
+  function updateParticles(){for(var i=particles.length-1;i>=0;i--){var p=particles[i];p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;if(p.life<=0)particles.splice(i,1)}}
+
+  var toastT=0;
+  function showToast(msg){clearTimeout(toastT);toastEl.textContent=msg;toastEl.className="toast show";toastT=setTimeout(function(){toastEl.classList.remove("show")},1400)}
+
+  // ============ 输入 ============
+  function setDir(dx,dy){if(dx===-dir.x&&dy===-dir.y)return;if(dx===0&&dy===0)return;nextDir={x:dx,y:dy}}
+  function setupInput(){
+    document.addEventListener("keydown",function(e){
+      var k=e.keyCode||e.which;
+      if(k===37||k===65)setDir(-1,0);else if(k===38||k===87)setDir(0,-1);else if(k===39||k===68)setDir(1,0);else if(k===40||k===83)setDir(0,1);else if(k===32)detonate();else if(k===49)skillBoost();else if(k===50)skillSpawnFood();else if(k===51)skillNukeAll();else return;
+      e.preventDefault();
+    });
+    var tx=0,ty=0,tr=false;
+    gameWrap.addEventListener("touchstart",function(e){if(e.touches.length!==1)return;tr=true;tx=e.touches[0].clientX;ty=e.touches[0].clientY;e.preventDefault()},{passive:false});
+    gameWrap.addEventListener("touchmove",function(e){if(tr)e.preventDefault()},{passive:false});
+    gameWrap.addEventListener("touchend",function(e){if(!tr)return;tr=false;var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;var ax=Math.abs(dx),ay=Math.abs(dy);if(Math.max(ax,ay)<12)return;if(!running)startGame();if(ax>ay)setDir(dx>0?1:-1,0);else setDir(0,dy>0?1:-1)});
+    overlay.addEventListener("click",function(e){if(e.target===overlay||e.target.classList.contains("msg")||e.target.classList.contains("msg-sub"))startGame()});
+  }
+
+  bombBtn.addEventListener("click",detonate);
+  skillDash.addEventListener("click",skillBoost);
+  skillSpawn.addEventListener("click",skillSpawnFood);
+  skillNuke.addEventListener("click",skillNukeAll);
+  document.getElementById("restartBtn").addEventListener("click",startGame);
+  document.getElementById("startOverlay").addEventListener("click",function(e){e.stopPropagation();startGame()});
+  setInterval(function(){if(running&&!paused&&particles.length>0){updateParticles();drawAll()}},25);
+
+  init();
+})();
+</script>
+</body>
+</html>
