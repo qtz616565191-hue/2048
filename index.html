@@ -1,2 +1,56 @@
 <!DOCTYPE html>
-<html><head><meta http-equiv="refresh" content="0;url=2048.html"></head><body></body></html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#faf8ef">
+<title>游戏小站</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #faf8ef, #f0e8d8); overflow-x: hidden;
+  }
+  body { display: flex; justify-content: center; align-items: center; min-height: 100dvh; padding: 20px; }
+  .wrap { text-align: center; max-width: 420px; width: 100%; }
+  h1 { font-size: 36px; font-weight: 900; color: #776e65; margin-bottom: 8px; }
+  .sub { font-size: 14px; color: #9c8f80; margin-bottom: 28px; }
+  .games { display: flex; flex-direction: column; gap: 16px; }
+  .game-card {
+    display: block; background: #fff; border-radius: 16px; padding: 24px 20px;
+    text-decoration: none; box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .game-card:active { transform: scale(0.97); box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
+  .game-card .icon { font-size: 48px; margin-bottom: 8px; }
+  .game-card .name { font-size: 22px; font-weight: 800; color: #776e65; }
+  .game-card .desc { font-size: 12px; color: #9c8f80; margin-top: 4px; }
+  .game-card.card-2048 { border-left: 4px solid #edc22e; }
+  .game-card.card-xxl { border-left: 4px solid #5b9bd5; }
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 8px; margin-left: 6px; vertical-align: middle;
+  }
+  .badge-skill { background: #f65e3b; color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎮 游戏小站</h1>
+  <p class="sub">选一个开始玩吧</p>
+  <div class="games">
+    <a class="game-card card-2048" href="2048.html">
+      <div class="icon">🔢</div>
+      <div class="name">2048 <span class="badge badge-skill">技能版</span></div>
+      <div class="desc">连击 · 能量条 · 炸弹 · 升级技能</div>
+    </a>
+    <a class="game-card card-xxl" href="消消乐.html">
+      <div class="icon">🍬</div>
+      <div class="name">消消乐</div>
+      <div class="desc">经典三消 · 轻松解压</div>
+    </a>
+  </div>
+</div>
+</body>
+</html>
