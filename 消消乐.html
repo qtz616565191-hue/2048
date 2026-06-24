@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#9cd8f0">
+<title>消消乐</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;font-family:"Helvetica Neue","PingFang SC","Microsoft YaHei",-apple-system,sans-serif;background:linear-gradient(180deg,#b8e3f5 0%,#9cd8f0 45%,#d8f0e8 100%);overflow:hidden;-webkit-user-select:none;user-select:none;color:#5a7a8a}
+  body{display:flex;justify-content:center;align-items:flex-start;min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);position:relative}
+  body::before,body::after{content:"";position:fixed;border-radius:50%;background:rgba(255,255,255,0.55);filter:blur(2px);pointer-events:none;z-index:0}
+  body::before{width:180px;height:60px;top:8%;left:-40px;box-shadow:60px 18px 0 -8px rgba(255,255,255,0.55),120px 8px 0 -4px rgba(255,255,255,0.5)}
+  body::after{width:150px;height:50px;top:20%;right:-50px;box-shadow:-50px 20px 0 -10px rgba(255,255,255,0.5)}
+  .container{width:100%;max-width:440px;padding:12px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
+  header{display:flex;justify-content:space-between;align-items:center;gap:6px}
+  .level-pill{background:#fff;border-radius:20px;padding:7px 14px;font-weight:800;font-size:14px;color:#5a7a8a;box-shadow:0 4px 0 #cfe3ec,0 6px 12px rgba(90,122,138,0.15)}
+  .level-pill span{color:#ff8c5a}
+  .scores{display:flex;gap:6px}
+  .score-box{background:#fff;border-radius:12px;padding:5px 10px;min-width:62px;text-align:center;box-shadow:0 4px 0 #cfe3ec,0 6px 12px rgba(90,122,138,0.12)}
+  .score-box .label{font-size:9px;font-weight:700;opacity:0.6;text-transform:uppercase;letter-spacing:.5px}
+  .score-box .value{font-size:19px;font-weight:800;line-height:1.15;color:#5a7a8a}
+  /* 能量条 */
+  .energy-wrap{display:flex;align-items:center;gap:6px}
+  .energy-label{font-size:11px;font-weight:800;color:#7aa8c0;min-width:24px;text-align:right}
+  .energy-bar-bg{flex:1;height:10px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(90,122,138,0.2)}
+  .energy-bar{height:100%;width:0%;background:linear-gradient(90deg,#7ea7d8,#bb8fce);border-radius:6px;transition:width .3s ease;position:relative}
+  .energy-bar.full{animation:energyPulse 1s ease infinite}
+  @keyframes energyPulse{0%,100%{opacity:1}50%{opacity:.7}}
+  .energy-bar::after{content:"";position:absolute;left:0;right:0;top:0;height:40%;background:linear-gradient(180deg,rgba(255,255,255,.5),transparent);border-radius:6px 6px 0 0}
+  /* 进度条 */
+  .progress-wrap{height:12px;background:#fff;border-radius:7px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(90,122,138,0.15)}
+  .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#ffd95e,#ff8c5a);border-radius:7px;transition:width .4s ease;position:relative}
+  .progress-bar::after{content:"";position:absolute;left:0;right:0;top:0;height:45%;background:linear-gradient(180deg,rgba(255,255,255,.5),transparent);border-radius:7px 7px 0 0}
+  .progress-meta{display:flex;justify-content:space-between;font-size:10px;opacity:.75;padding:0 2px;font-weight:600}
+  .progress-meta strong{color:#ff8c5a}
+  /* 棋盘 */
+  .board-wrap{position:relative;width:100%;aspect-ratio:1/1;background:rgba(255,255,255,.7);border-radius:20px;touch-action:none;overflow:hidden;box-shadow:0 8px 0 rgba(120,160,180,.25),0 12px 28px rgba(90,122,138,.2);backdrop-filter:blur(6px)}
+  .board{position:absolute;inset:0}
+  .cell-bg{position:absolute;width:var(--cell);height:var(--cell);transform:translate(calc(var(--x)*var(--step)),calc(var(--y)*var(--step)));background:rgba(160,205,225,.18);border-radius:11px}
+  .gem{position:absolute;width:var(--cell);height:var(--cell);transform:translate(calc(var(--x)*var(--step)),calc(var(--y)*var(--step)));transition:transform .26s cubic-bezier(.4,0,.2,1),opacity .2s;display:flex;align-items:center;justify-content:center;cursor:pointer;will-change:transform}
+  .gem-inner{width:82%;height:82%;display:flex;align-items:center;justify-content:center;transition:transform .15s ease;filter:drop-shadow(0 3px 4px rgba(90,122,138,.28))}
+  .gem-inner svg{width:100%;height:100%;display:block}
+  .gem.selected .gem-inner{transform:scale(1.12) translateY(-2px);filter:drop-shadow(0 6px 8px rgba(90,122,138,.35)) drop-shadow(0 0 8px rgba(255,217,94,.8))}
+  .gem.removing{transition:transform .26s cubic-bezier(.4,0,.2,1),opacity .2s}
+  .gem.removing .gem-inner{animation:poof .28s ease forwards}
+  @keyframes poof{0%{transform:scale(1) rotate(0);opacity:1}40%{transform:scale(1.28) rotate(12deg);opacity:1}100%{transform:scale(0) rotate(30deg);opacity:0}}
+  /* 技能提示行 */
+  .skill-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#ff8c5a;pointer-events:none;opacity:0;transition:opacity .2s;z-index:15;text-shadow:0 2px 8px rgba(255,255,255,.8)}
+  .skill-hint.show{opacity:1}
+  /* 飘字 */
+  .floater{position:absolute;font-weight:800;font-size:18px;color:#fff;text-shadow:0 2px 0 #ff8c5a,0 3px 6px rgba(0,0,0,.25);pointer-events:none;animation:float .95s ease-out forwards;z-index:20;white-space:nowrap}
+  @keyframes float{0%{opacity:0;transform:translate(-50%,0) scale(.6)}20%{opacity:1;transform:translate(-50%,-8px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-50px) scale(1)}}
+  /* 结算 */
+  .overlay{position:absolute;inset:0;background:rgba(255,255,255,.82);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s ease;z-index:30;backdrop-filter:blur(4px)}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .overlay h2{font-size:32px;font-weight:800;color:#5a7a8a}
+  .overlay.win h2{color:#ff8c5a}
+  .overlay.lose h2{color:#7aa8c0}
+  .overlay p{font-size:14px;color:#5a7a8a;opacity:.85;font-weight:600}
+  .overlay .star-row{font-size:36px;letter-spacing:5px;line-height:1}
+  /* 按钮 */
+  .btn{background:linear-gradient(180deg,#ffc36b,#ff8c5a);color:#fff;border:none;border-radius:12px;padding:11px 26px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 0 #e0734a,0 6px 12px rgba(224,115,74,.35);transition:transform .1s;text-shadow:0 1px 1px rgba(0,0,0,.15)}
+  .btn:active{transform:translateY(2px);box-shadow:0 2px 0 #e0734a,0 3px 6px rgba(224,115,74,.3)}
+  .btn-sm{padding:7px 14px;font-size:12px;border-radius:10px;box-shadow:0 3px 0 #e0734a}
+  .btn-ghost{background:#fff;color:#5a7a8a;box-shadow:0 3px 0 #cfe3ec,0 5px 10px rgba(90,122,138,.12);text-shadow:none;padding:8px 16px;font-size:12px;border-radius:10px}
+  .btn-ghost:active{box-shadow:0 1px 0 #cfe3ec;transform:translateY(2px)}
+  .btn-ghost.disabled{opacity:.4;pointer-events:none}
+  /* 技能栏 */
+  .skill-bar{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+  .skill-btn{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:800;min-width:auto}
+  .skill-cost{font-size:10px;opacity:.7}
+  /* 底部 */
+  .footer{display:flex;gap:6px;justify-content:center}
+  .footer-tip{text-align:center;font-size:10px;opacity:.65;font-weight:600;padding-top:1px}
+  /* 新水果解锁提示 */
+  .unlock-toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);background:#fff;border-radius:20px;padding:20px 30px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.2);z-index:100;opacity:0;transition:all .3s ease;pointer-events:none}
+  .unlock-toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .unlock-toast h3{font-size:16px;color:#ff8c5a;margin-bottom:6px}
+  .unlock-toast .icon{font-size:48px;line-height:1}
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="level-pill">第 <span id="level">1</span> 关</div>
+      <div class="scores">
+        <div class="score-box"><div class="label">分数</div><div class="value" id="score">0</div></div>
+        <div class="score-box"><div class="label">步数</div><div class="value" id="moves">20</div></div>
+        <div class="score-box"><div class="label">最高</div><div class="value" id="bestLevel">1</div></div>
+      </div>
+    </header>
+    <!-- 能量条 -->
+    <div class="energy-wrap">
+      <span class="energy-label">⚡</span>
+      <div class="energy-bar-bg"><div class="energy-bar" id="energyBar"></div></div>
+      <span class="energy-label" id="energyText">0</span>
+    </div>
+    <div>
+      <div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
+      <div class="progress-meta">
+        <span>目标 <strong id="target">600</strong></span>
+        <span>水果 <strong id="fruitCount">6</strong>/12 种</span>
+      </div>
+    </div>
+    <div class="board-wrap" id="boardWrap">
+      <div class="board" id="board">
+        <div class="skill-hint" id="skillHint"></div>
+        <div class="overlay" id="overlay">
+          <div class="star-row" id="overlayStars"></div>
+          <h2 id="overlayTitle"></h2>
+          <p id="overlayText"></p>
+          <button class="btn" id="overlayBtn"></button>
+        </div>
+      </div>
+    </div>
+    <!-- 技能栏 -->
+    <div class="skill-bar" id="skillBar">
+      <button class="btn btn-sm skill-btn" id="skLightning">⚡闪电<span class="skill-cost">30</span></button>
+      <button class="btn btn-sm skill-btn" id="skTsunami">🌊海啸<span class="skill-cost">50</span></button>
+      <button class="btn btn-sm skill-btn" id="skSniper">🎯狙击<span class="skill-cost">40</span></button>
+    </div>
+    <div class="footer">
+      <button class="btn btn-ghost" id="shuffleBtn">🔀</button>
+      <button class="btn btn-ghost" id="restartBtn">🔄</button>
+    </div>
+    <div class="footer-tip" id="footerTip">点选水果交换 · 滑动也行 · 💣点炸弹引爆 · 🌈彩虹与任意水果交换</div>
+  </div>
+  <!-- 解锁提示 -->
+  <div class="unlock-toast" id="unlockToast"><div class="icon" id="unlockIcon"></div><h3 id="unlockText"></h3></div>
+
+<script>
+(function(){
+"use strict";
+var SIZE=8, MAX_TYPES=12, GAP_RATIO=0.025;
+var STORAGE_BEST="h5_xxl_best2";
+var BOMB=-1, RAINBOW=-2;
+
+// ============ 12种水果SVG(圆形切片) + 炸弹 + 彩虹 ============
+var FRUITS=[
+// 0 橙子
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f0" cx="40%" cy="35%"><stop offset="0%" stop-color="#ffd699"/><stop offset="100%" stop-color="#fb8c00"/></radialGradient></defs><circle cx="50" cy="50" r="42" fill="#ffa726"/><circle cx="50" cy="50" r="39" fill="#fff3e0"/><circle cx="50" cy="50" r="36" fill="url(#f0)"/><g stroke="#fff3e0" stroke-width="2.4" stroke-linecap="round"><line x1="16" y1="50" x2="84" y2="50"/><line x1="50" y1="16" x2="50" y2="84"/><line x1="26" y1="26" x2="74" y2="74"/><line x1="74" y1="26" x2="26" y2="74"/></g><circle cx="50" cy="50" r="6" fill="#fff3e0"/></svg>',
+// 1 柠檬
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f1" cx="40%" cy="35%"><stop offset="0%" stop-color="#fff59d"/><stop offset="100%" stop-color="#fdd835"/></radialGradient></defs><circle cx="50" cy="50" r="42" fill="#fbc02d"/><circle cx="50" cy="50" r="39" fill="#fffde7"/><circle cx="50" cy="50" r="36" fill="url(#f1)"/><g stroke="#fffde7" stroke-width="2.4" stroke-linecap="round"><line x1="16" y1="50" x2="84" y2="50"/><line x1="50" y1="16" x2="50" y2="84"/><line x1="26" y1="26" x2="74" y2="74"/><line x1="74" y1="26" x2="26" y2="74"/></g><circle cx="50" cy="50" r="6" fill="#fffde7"/></svg>',
+// 2 猕猴桃
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f2" cx="40%" cy="35%"><stop offset="0%" stop-color="#c6e87a"/><stop offset="100%" stop-color="#7cb342"/></radialGradient></defs><circle cx="50" cy="50" r="42" fill="#689f38"/><circle cx="50" cy="50" r="38" fill="url(#f2)"/><circle cx="50" cy="50" r="9" fill="#f4fbe8"/><g stroke="#f4fbe8" stroke-width="1.4" opacity=".65"><line x1="50" y1="50" x2="50" y2="22"/><line x1="50" y1="50" x2="72" y2="36"/><line x1="50" y1="50" x2="72" y2="64"/><line x1="50" y1="50" x2="50" y2="78"/><line x1="50" y1="50" x2="28" y2="64"/><line x1="50" y1="50" x2="28" y2="36"/></g><g fill="#3a2a1a"><ellipse cx="50" cy="28" rx="1.8" ry="3"/><ellipse cx="64" cy="36" rx="1.8" ry="3"/><ellipse cx="68" cy="50" rx="1.8" ry="3"/><ellipse cx="64" cy="64" rx="1.8" ry="3"/><ellipse cx="50" cy="72" rx="1.8" ry="3"/><ellipse cx="36" cy="64" rx="1.8" ry="3"/><ellipse cx="32" cy="50" rx="1.8" ry="3"/><ellipse cx="36" cy="36" rx="1.8" ry="3"/></g></svg>',
+// 3 西瓜
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f3" cx="45%" cy="40%"><stop offset="0%" stop-color="#ff7a8a"/><stop offset="100%" stop-color="#e63946"/></radialGradient></defs><path d="M14 66 A40 40 0 0 1 86 66Z" fill="#66bb6a"/><path d="M18 66 A36 36 0 0 1 82 66Z" fill="#fffde7"/><path d="M20 66 A34 34 0 0 1 80 66Z" fill="url(#f3)"/><g fill="#4a2c1a"><ellipse cx="36" cy="52" rx="2.4" ry="4"/><ellipse cx="50" cy="48" rx="2.4" ry="4"/><ellipse cx="64" cy="52" rx="2.4" ry="4"/><ellipse cx="44" cy="60" rx="2.4" ry="4"/><ellipse cx="58" cy="60" rx="2.4" ry="4"/></g></svg>',
+// 4 草莓
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f4" cx="40%" cy="35%"><stop offset="0%" stop-color="#ff8a9a"/><stop offset="100%" stop-color="#e63946"/></radialGradient></defs><circle cx="50" cy="50" r="40" fill="url(#f4)"/><circle cx="50" cy="50" r="16" fill="#fff5f5"/><g stroke="#ff8a9a" stroke-width="2" opacity=".5"><line x1="50" y1="36" x2="50" y2="64"/><line x1="36" y1="50" x2="64" y2="50"/><line x1="40" y1="40" x2="60" y2="60"/><line x1="60" y1="40" x2="40" y2="60"/></g><g fill="#ffd54f"><ellipse cx="50" cy="25" rx="1.8" ry="2.8"/><ellipse cx="68" cy="33" rx="1.8" ry="2.8"/><ellipse cx="74" cy="50" rx="1.8" ry="2.8"/><ellipse cx="68" cy="67" rx="1.8" ry="2.8"/><ellipse cx="50" cy="75" rx="1.8" ry="2.8"/><ellipse cx="32" cy="67" rx="1.8" ry="2.8"/><ellipse cx="26" cy="50" rx="1.8" ry="2.8"/><ellipse cx="32" cy="33" rx="1.8" ry="2.8"/></g></svg>',
+// 5 蓝莓
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f5" cx="40%" cy="35%"><stop offset="0%" stop-color="#7ea7d8"/><stop offset="100%" stop-color="#3a5a9e"/></radialGradient></defs><circle cx="50" cy="50" r="40" fill="url(#f5)"/><circle cx="50" cy="50" r="28" fill="#dcedc8"/><g fill="#827717"><ellipse cx="43" cy="42" rx="1.8" ry="2.8"/><ellipse cx="57" cy="42" rx="1.8" ry="2.8"/><ellipse cx="39" cy="55" rx="1.8" ry="2.8"/><ellipse cx="61" cy="55" rx="1.8" ry="2.8"/><ellipse cx="50" cy="60" rx="1.8" ry="2.8"/></g></svg>',
+// 6 桃子 - 粉橙果肉+大核
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f6" cx="40%" cy="35%"><stop offset="0%" stop-color="#ffccd5"/><stop offset="100%" stop-color="#ff8a80"/></radialGradient></defs><circle cx="50" cy="50" r="42" fill="#ffab91"/><circle cx="50" cy="50" r="38" fill="url(#f6)"/><ellipse cx="50" cy="54" rx="14" ry="16" fill="#8d6e63" opacity=".7"/><ellipse cx="46" cy="38" rx="7" ry="10" fill="#fff" opacity=".3"/><path d="M48 14 C52 10 60 14 58 22" stroke="#6bbf59" stroke-width="4" fill="none" stroke-linecap="round"/><ellipse cx="56" cy="18" rx="5" ry="3" fill="#6bbf59"/></svg>',
+// 7 牛油果 - 绿皮+黄绿肉+大核
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f7" cx="40%" cy="35%"><stop offset="0%" stop-color="#e6ee9c"/><stop offset="100%" stop-color="#aed581"/></radialGradient></defs><circle cx="50" cy="50" r="42" fill="#558b2f"/><circle cx="50" cy="50" r="37" fill="url(#f7)"/><ellipse cx="50" cy="52" rx="15" ry="17" fill="#8d6e63" opacity=".75"/><ellipse cx="50" cy="50" rx="12" ry="14" fill="#a1887f" opacity=".6"/><ellipse cx="44" cy="38" rx="6" ry="9" fill="#fff" opacity=".25"/></svg>',
+// 8 樱桃 - 深红+双核+茎
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f8" cx="40%" cy="35%"><stop offset="0%" stop-color="#ef9a9a"/><stop offset="100%" stop-color="#c62828"/></radialGradient></defs><circle cx="38" cy="60" r="22" fill="url(#f8)"/><circle cx="62" cy="60" r="22" fill="url(#f8)"/><ellipse cx="34" cy="54" rx="6" ry="8" fill="#fff" opacity=".3"/><ellipse cx="58" cy="54" rx="6" ry="8" fill="#fff" opacity=".3"/><path d="M38 40 C38 22 50 14 50 14" stroke="#6bbf59" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M62 40 C62 22 50 14 50 14" stroke="#6bbf59" stroke-width="4" fill="none" stroke-linecap="round"/><ellipse cx="52" cy="14" rx="6" ry="4" fill="#6bbf59"/></svg>',
+// 9 菠萝 - 金黄+旋纹+中心
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="f9" cx="40%" cy="35%"><stop offset="0%" stop-color="#fff176"/><stop offset="100%" stop-color="#f9a825"/></radialGradient></defs><circle cx="50" cy="50" r="42" fill="#f57f17"/><circle cx="50" cy="50" r="38" fill="url(#f9)"/><g stroke="#f57f17" stroke-width="2" opacity=".5" fill="none"><path d="M30 30 Q50 50 30 70"/><path d="M40 26 Q50 50 40 74"/><path d="M50 24 Q50 50 50 76"/><path d="M60 26 Q50 50 60 74"/><path d="M70 30 Q50 50 70 70"/></g><circle cx="50" cy="50" r="5" fill="#f57f17" opacity=".6"/><ellipse cx="42" cy="38" rx="6" ry="9" fill="#fff" opacity=".3"/></svg>',
+// 10 苹果 - 浅绿红+籽芯
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="fa" cx="40%" cy="35%"><stop offset="0%" stop-color="#ffccbc"/><stop offset="100%" stop-color="#e53935"/></radialGradient></defs><circle cx="50" cy="50" r="42" fill="#e53935"/><circle cx="50" cy="50" r="38" fill="url(#fa)"/><path d="M30 30 Q50 10 70 30" fill="#c8e6c9" opacity=".6"/><circle cx="50" cy="50" r="8" fill="#fff5f5" opacity=".7"/><g fill="#5d4037"><ellipse cx="47" cy="49" rx="1.5" ry="2.5"/><ellipse cx="53" cy="49" rx="1.5" ry="2.5"/><ellipse cx="50" cy="54" rx="1.5" ry="2.5"/></g><ellipse cx="42" cy="38" rx="7" ry="10" fill="#fff" opacity=".3"/><path d="M50 16 L50 28" stroke="#795548" stroke-width="3" stroke-linecap="round"/><ellipse cx="56" cy="16" rx="6" ry="4" fill="#6bbf59"/></svg>',
+// 11 番茄 - 红+分瓣+黄籽
+'<svg viewBox="0 0 100 100"><defs><radialGradient id="fb" cx="40%" cy="35%"><stop offset="0%" stop-color="#ff8a80"/><stop offset="100%" stop-color="#d32f2f"/></radialGradient></defs><circle cx="50" cy="52" r="38" fill="url(#fb)"/><path d="M30 26 Q50 18 70 26" fill="#6bbf59"/><path d="M35 26 Q50 22 65 26" fill="#81c784"/><g stroke="#ef9a9a" stroke-width="1.8" opacity=".4" fill="none"><path d="M50 20 Q50 52 50 86"/><path d="M22 40 Q50 52 78 40"/><path d="M28 62 Q50 52 72 62"/></g><g fill="#ffd54f"><ellipse cx="50" cy="36" rx="1.8" ry="2.8"/><ellipse cx="64" cy="44" rx="1.8" ry="2.8"/><ellipse cx="64" cy="60" rx="1.8" ry="2.8"/><ellipse cx="50" cy="68" rx="1.8" ry="2.8"/><ellipse cx="36" cy="60" rx="1.8" ry="2.8"/><ellipse cx="36" cy="44" rx="1.8" ry="2.8"/></g><ellipse cx="42" cy="42" rx="6" ry="9" fill="#fff" opacity=".25"/></svg>'
+];
+// 炸弹SVG
+var BOMB_SVG='<svg viewBox="0 0 100 100"><defs><radialGradient id="gb" cx="40%" cy="35%"><stop offset="0%" stop-color="#546e7a"/><stop offset="100%" stop-color="#263238"/></radialGradient></defs><circle cx="50" cy="54" r="32" fill="url(#gb)"/><ellipse cx="40" cy="44" rx="8" ry="10" fill="#fff" opacity=".2"/><path d="M56 24 Q60 16 58 10" stroke="#ff8a65" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="58" cy="8" r="4" fill="#ffd54f"/><circle cx="58" cy="8" r="2.5" fill="#ff6d00"/></svg>';
+// 彩虹SVG
+var RAINBOW_SVG='<svg viewBox="0 0 100 100"><defs><linearGradient id="gr" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ef5350"/><stop offset="20%" stop-color="#ff9800"/><stop offset="40%" stop-color="#ffeb3b"/><stop offset="60%" stop-color="#66bb6a"/><stop offset="80%" stop-color="#42a5f5"/><stop offset="100%" stop-color="#ab47bc"/></linearGradient></defs><circle cx="50" cy="50" r="38" fill="url(#gr)"/><circle cx="50" cy="50" r="14" fill="#fff" opacity=".8"/><g transform="rotate(45 50 50)"><rect x="46" y="10" width="8" height="80" rx="4" fill="#fff" opacity=".25"/></g></svg>';
+
+// ============ DOM ============
+var boardEl=document.getElementById("board"),boardWrap=document.getElementById("boardWrap");
+var scoreEl=document.getElementById("score"),movesEl=document.getElementById("moves"),levelEl=document.getElementById("level");
+var targetEl=document.getElementById("target"),bestEl=document.getElementById("bestLevel");
+var progressEl=document.getElementById("progress"),fruitCountEl=document.getElementById("fruitCount");
+var energyBarEl=document.getElementById("energyBar"),energyTextEl=document.getElementById("energyText");
+var overlay=document.getElementById("overlay"),overlayTitle=document.getElementById("overlayTitle");
+var overlayText=document.getElementById("overlayText"),overlayBtn=document.getElementById("overlayBtn");
+var overlayStars=document.getElementById("overlayStars"),skillHintEl=document.getElementById("skillHint");
+var unlockToast=document.getElementById("unlockToast"),unlockIcon=document.getElementById("unlockIcon");
+var unlockText=document.getElementById("unlockText");
+var skLightning=document.getElementById("skLightning"),skTsunami=document.getElementById("skTsunami");
+var skSniper=document.getElementById("skSniper");
+
+// ============ 状态 ============
+var grid,cellNodes,score=0,target=600,movesLeft=22,level=1,activeTypes=6;
+var bestLevel=+(localStorage.getItem(STORAGE_BEST)||1);
+var selected=null,busy=false,ended=false,dragStart=null;
+var skillMode=null; // null | 'lightning' | 'tsunami' | 'sniper'
+var energy=0,MAX_ENERGY=100;
+
+// ============ 工具 ============
+function within(x,y){return x>=0&&x<SIZE&&y>=0&&y<SIZE}
+function rand(n){return Math.floor(Math.random()*n)}
+function wait(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function nextFrame(){return new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})})}
+function emptyGrid(){var g=[];for(var x=0;x<SIZE;x++){g[x]=[];for(var y=0;y<SIZE;y++)g[x][y]=null;}return g;}
+function isNormal(v){return v!==null&&v>=0}
+function isBomb(v){return v===BOMB}
+function isRainbow(v){return v===RAINBOW}
+function isSpecial(v){return v===BOMB||v===RAINBOW}
+
+// ============ 关卡配置 ============
+function levelConfig(lv){
+  var types;
+  if(lv<=2) types=6;
+  else if(lv<=4) types=7;
+  else if(lv<=6) types=8;
+  else if(lv<=8) types=9;
+  else if(lv<=10) types=10;
+  else if(lv<=12) types=11;
+  else types=12;
+  var tgt,mov;
+  if(lv<=2){tgt=600+(lv-1)*200;mov=22;}
+  else if(lv<=5){tgt=800+(lv-1)*250;mov=22;}
+  else if(lv<=7){tgt=1100+(lv-3)*200;mov=21;}
+  else if(lv<=9){tgt=1400+(lv-5)*250;mov=20;}
+  else{tgt=2000+(lv-10)*300;mov=20;}
+  return{types:types,target:tgt,moves:mov};
+}
+
+// ============ 初始化棋盘 ============
+function initGrid(){
+  grid=emptyGrid();
+  for(var x=0;x<SIZE;x++){
+    for(var y=0;y<SIZE;y++){
+      var avoid={};
+      if(x>=2&&isNormal(grid[x-1][y])&&isNormal(grid[x-2][y])&&grid[x-1][y]===grid[x-2][y]) avoid[grid[x-1][y]]=true;
+      if(y>=2&&isNormal(grid[x][y-1])&&isNormal(grid[x][y-2])&&grid[x][y-1]===grid[x][y-2]) avoid[grid[x][y-1]]=true;
+      var t,guard=0;
+      do{t=rand(activeTypes);guard++;}while(avoid[t]&&guard<50);
+      grid[x][y]=t;
+    }
+  }
+  if(!hasAnyMove()) initGrid();
+}
+
+// ============ 布局 ============
+function layoutBoard(){
+  var rect=boardWrap.getBoundingClientRect(),total=rect.width;
+  var gap=total*GAP_RATIO,cell=(total-(SIZE-1)*gap)/SIZE,step=cell+gap;
+  boardEl.style.setProperty("--cell",cell+"px");
+  boardEl.style.setProperty("--step",step+"px");
+  boardWrap.style.setProperty("--cell",cell+"px");
+  boardWrap.style.setProperty("--step",step+"px");
+}
+
+// ============ 匹配检测(返回匹配组信息,用于4连/5连判定) ============
+function findMatchInfo(){
+  var matched={},groups=[];
+  // 横向
+  for(var y=0;y<SIZE;y++){
+    var rs=0;
+    for(var x=1;x<=SIZE;x++){
+      var same=x<SIZE&&isNormal(grid[x][y])&&isNormal(grid[x-1][y])&&grid[x][y]===grid[x-1][y];
+      if(!same){
+        if(x-rs>=3&&isNormal(grid[x-1][y])){
+          var cells=[];
+          for(var k=rs;k<x;k++){matched[k+","+y]=true;cells.push({x:k,y:y});}
+          groups.push({cells:cells,len:x-rs});
+        }
+        rs=x;
+      }
+    }
+  }
+  // 纵向
+  for(var x=0;x<SIZE;x++){
+    var rv=0;
+    for(var y2=1;y2<=SIZE;y2++){
+      var sameV=y2<SIZE&&isNormal(grid[x][y2])&&isNormal(grid[x][y2-1])&&grid[x][y2]===grid[x][y2-1];
+      if(!sameV){
+        if(y2-rv>=3&&isNormal(grid[x][y2-1])){
+          var cellsV=[];
+          for(var k2=rv;k2<y2;k2++){matched[x+","+k2]=true;cellsV.push({x:x,y:k2});}
+          groups.push({cells:cellsV,len:y2-rv});
+        }
+        rv=y2;
+      }
+    }
+  }
+  return{matched:matched,groups:groups};
+}
+function hasMatch(){var m=findMatchInfo();for(var k in m.matched)return true;return false;}
+
+function hasAnyMove(){
+  // 有特殊方块就有可用步
+  for(var x=0;x<SIZE;x++) for(var y=0;y<SIZE;y++) if(isSpecial(grid[x][y])) return true;
+  for(var x2=0;x2<SIZE;x2++){
+    for(var y3=0;y3<SIZE;y3++){
+      if(!isNormal(grid[x2][y3])) continue;
+      if(x2+1<SIZE&&isNormal(grid[x2+1][y3])){swapData(x2,y3,x2+1,y3);var m1=hasMatch();swapData(x2,y3,x2+1,y3);if(m1)return true;}
+      if(y3+1<SIZE&&isNormal(grid[x2][y3+1])){swapData(x2,y3,x2,y3+1);var m2=hasMatch();swapData(x2,y3,x2,y3+1);if(m2)return true;}
+    }
+  }
+  return false;
+}
+function swapData(x1,y1,x2,y2){var t=grid[x1][y1];grid[x1][y1]=grid[x2][y2];grid[x2][y2]=t;}
+
+// ============ 渲染 ============
+function buildBackground(){
+  for(var x=0;x<SIZE;x++) for(var y=0;y<SIZE;y++){
+    var c=document.createElement("div");c.className="cell-bg";
+    c.style.setProperty("--x",x);c.style.setProperty("--y",y);
+    boardEl.appendChild(c);
+  }
+}
+function getSvg(type){
+  if(type===BOMB) return BOMB_SVG;
+  if(type===RAINBOW) return RAINBOW_SVG;
+  return FRUITS[type]||FRUITS[0];
+}
+function makeGem(type){
+  var n=document.createElement("div");
+  n.className="gem";
+  n.setAttribute("data-type",type);
+  n.innerHTML='<div class="gem-inner">'+getSvg(type)+'</div>';
+  return n;
+}
+function setPos(node,x,y){node.style.setProperty("--x",x);node.style.setProperty("--y",y);}
+function renderAll(){
+  var old=boardEl.querySelectorAll(".gem");
+  old.forEach(function(n){n.remove();});
+  cellNodes=emptyGrid();
+  for(var x=0;x<SIZE;x++) for(var y=0;y<SIZE;y++){
+    if(grid[x][y]===null) continue;
+    var node=makeGem(grid[x][y]);
+    setPos(node,x,y);
+    cellNodes[x][y]=node;
+    boardEl.appendChild(node);
+  }
+}
+
+function updateUI(){
+  scoreEl.textContent=score;movesEl.textContent=movesLeft;
+  levelEl.textContent=level;targetEl.textContent=target;
+  if(bestEl)bestEl.textContent=bestLevel;fruitCountEl.textContent=activeTypes;
+  var p=Math.min(100,(score/target)*100);
+  progressEl.style.width=p+"%";
+  // 能量
+  energyTextEl.textContent=energy;
+  energyBarEl.style.width=Math.min(100,(energy/MAX_ENERGY)*100)+"%";
+  if(energy>=MAX_ENERGY) energyBarEl.classList.add("full"); else energyBarEl.classList.remove("full");
+  // 技能按钮状态
+  skLightning.classList.toggle("disabled",energy<30);
+  skTsunami.classList.toggle("disabled",energy<50);
+  skSniper.classList.toggle("disabled",energy<40);
+}
+
+// ============ 交换 ============
+async function trySwap(x1,y1,x2,y2){
+  if(busy||ended) return;
+  if(!adjacent(x1,y1,x2,y2)) return;
+  var v1=grid[x1][y1],v2=grid[x2][y2];
+  // 彩虹特殊交换
+  if(v1===RAINBOW||v2===RAINBOW){
+    busy=true;clearSelection();
+    var rbX=v1===RAINBOW?x1:x2, rbY=v1===RAINBOW?y1:y2;
+    var otherX=v1===RAINBOW?x2:x1, otherY=v1===RAINBOW?y2:y1;
+    var targetType=grid[otherX][otherY];
+    // 清除彩虹
+    grid[rbX][rbY]=null;
+    if(cellNodes[rbX][rbY]){cellNodes[rbX][rbY].classList.add("removing");}
+    // 清除所有同色水果
+    var clearCount=0;
+    for(var cx=0;cx<SIZE;cx++) for(var cy=0;cy<SIZE;cy++){
+      if(grid[cx][cy]===targetType&&isNormal(targetType)){
+        if(cellNodes[cx][cy]) cellNodes[cx][cy].classList.add("removing");
+        grid[cx][cy]=null; clearCount++;
+      }
+    }
+    var gain=(clearCount+1)*15;score+=gain;
+    showFloater("🌈 全消! +"+gain);
+    updateUI();
+    await wait(300);
+    // 移除DOM
+    for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++){
+      if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
+    }
+    await applyGravity();await wait(280);
+    // 连锁
+    if(hasMatch()) await resolveBoard();
+    if(!hasAnyMove()){await wait(150);doShuffle(true);}
+    checkEnd();busy=false;return;
+  }
+  try{
+    busy=true;clearSelection();
+    swapData(x1,y1,x2,y2);swapNodes(x1,y1,x2,y2);
+    setPos(cellNodes[x1][y1],x1,y1);setPos(cellNodes[x2][y2],x2,y2);
+    await wait(260);
+    if(hasMatch()){
+      movesLeft--;updateUI();await resolveBoard();checkEnd();
+    } else {
+      swapData(x1,y1,x2,y2);swapNodes(x1,y1,x2,y2);
+      setPos(cellNodes[x1][y1],x1,y1);setPos(cellNodes[x2][y2],x2,y2);
+      await wait(260);
+    }
+  }catch(e){console.error("trySwap error:",e);}
+  busy=false;
+}
+function adjacent(x1,y1,x2,y2){return(Math.abs(x1-x2)+Math.abs(y1-y2))===1;}
+function swapNodes(x1,y1,x2,y2){var t=cellNodes[x1][y1];cellNodes[x1][y1]=cellNodes[x2][y2];cellNodes[x2][y2]=t;}
+
+// ============ 连锁消除(支持4连→炸弹,5连→彩虹) ============
+async function resolveBoard(){
+  try{
+  var combo=0;
+  while(hasMatch()){
+    combo++;
+    var info=findMatchInfo();
+    var matched=info.matched, groups=info.groups;
+    // 判定4连/5连,生成特殊
+    var specials=[];
+    for(var gi=0;gi<groups.length;gi++){
+      var g=groups[gi], mid=Math.floor(g.cells.length/2);
+      var sx=g.cells[mid].x, sy=g.cells[mid].y;
+      if(g.len>=5) specials.push({type:RAINBOW,x:sx,y:sy});
+      else if(g.len>=4) specials.push({type:BOMB,x:sx,y:sy});
+    }
+    // 标记消除动画
+    for(var key in matched){
+      var parts=key.split(","), mx=+parts[0], my=+parts[1];
+      if(cellNodes[mx][my]) cellNodes[mx][my].classList.add("removing");
+    }
+    var cleared=0; for(var k in matched) cleared++;
+    // 加能量
+    energy=Math.min(MAX_ENERGY,energy+cleared);
+    var gain=cleared*10*combo;score+=gain;
+    if(combo>=2) showFloater(combo>=3?"🔥 Combo x"+combo+" +"+gain:"✨ Combo x"+combo+" +"+gain);
+    updateUI();
+    await wait(260);
+    // 移除
+    for(var key2 in matched){
+      var p2=key2.split(","), xx=+p2[0], yy=+p2[1];
+      if(cellNodes[xx][yy]){cellNodes[xx][yy].remove();cellNodes[xx][yy]=null;}
+      grid[xx][yy]=null;
+    }
+    // 放置特殊方块(在下落前)
+    var specialPlaced=[];
+    for(var si=0;si<specials.length;si++){
+      var sp=specials[si];
+      // 如果位置已有方块(不该有,刚清空),跳过
+      if(grid[sp.x][sp.y]!==null) continue;
+      // 确保不重复位置
+      var dup=false;
+      for(var di=0;di<specialPlaced.length;di++) if(specialPlaced[di].x===sp.x&&specialPlaced[di].y===sp.y){dup=true;break;}
+      if(dup) continue;
+      grid[sp.x][sp.y]=sp.type;
+      var sn=makeGem(sp.type);
+      sn.style.transition="none";
+      setPos(sn,sp.x,sp.y);
+      cellNodes[sp.x][sp.y]=sn;
+      boardEl.appendChild(sn);
+      specialPlaced.push(sp);
+      void sn.offsetHeight;
+      sn.style.transition="";
+      if(sp.type===BOMB) showFloater("💣 获得炸弹!");
+      if(sp.type===RAINBOW) showFloater("🌈 获得彩虹!");
+    }
+    await applyGravity();await wait(280);
+  }
+  if(!hasAnyMove()){await wait(150);doShuffle(true);}
+  }catch(e){console.error("resolveBoard error:",e);}
+}
+
+// ============ 炸弹爆炸 ============
+async function explodeBomb(bx,by){
+  if(busy||ended) return;
+  try{
+  busy=true;clearSelection();
+  // 爆炸3x3范围
+  var cleared=[];
+  for(var dx=-1;dx<=1;dx++) for(var dy=-1;dy<=1;dy++){
+    var tx=bx+dx,ty=by+dy;
+    if(within(tx,ty)&&grid[tx][ty]!==null&&!isBomb(grid[tx][ty])){
+      cleared.push({x:tx,y:ty});
+    }
+  }
+  // 标记动画
+  for(var i=0;i<cleared.length;i++){
+    if(cellNodes[cleared[i].x][cleared[i].y]) cellNodes[cleared[i].x][cleared[i].y].classList.add("removing");
+  }
+  // 炸弹自身也消除
+  grid[bx][by]=null;
+  if(cellNodes[bx][by]){cellNodes[bx][by].classList.add("removing");}
+
+  var gain=cleared.length*10;score+=gain;energy=Math.min(MAX_ENERGY,energy+3);
+  showFloater("💥 +"+gain);
+  updateUI();
+  await wait(280);
+  // 移除
+  for(var j=0;j<cleared.length;j++){
+    var c=cleared[j];
+    if(cellNodes[c.x][c.y]){cellNodes[c.x][c.y].remove();cellNodes[c.x][c.y]=null;}
+    grid[c.x][c.y]=null;
+  }
+  if(cellNodes[bx][by]){cellNodes[bx][by].remove();cellNodes[bx][by]=null;}
+  await applyGravity();await wait(280);
+  if(hasMatch()) await resolveBoard();
+  if(!hasAnyMove()){await wait(150);doShuffle(true);}
+  checkEnd();
+  }catch(e){console.error("explodeBomb error:",e);}
+  busy=false;
+}
+
+// ============ 能量技能 ============
+async function useSkill(type,tx,ty){
+  if(busy||ended) return;
+  try{
+  busy=true;clearSelection();skillMode=null;
+  skillHintEl.classList.remove("show");
+
+  var cleared=[];
+  if(type==="lightning"){
+    // 清一整行
+    for(var x=0;x<SIZE;x++) if(grid[x][ty]!==null) cleared.push({x:x,y:ty});
+    energy-=30;
+  } else if(type==="tsunami"){
+    // 清一整列
+    for(var y=0;y<SIZE;y++) if(grid[tx][y]!==null) cleared.push({x:tx,y:y});
+    energy-=50;
+  } else if(type==="sniper"){
+    // 清3x3
+    for(var dx=-1;dx<=1;dx++) for(var dy=-1;dy<=1;dy++){
+      var nx=tx+dx,ny=ty+dy;
+      if(within(nx,ny)&&grid[nx][ny]!==null) cleared.push({x:nx,y:ny});
+    }
+    energy-=40;
+  }
+  // 标记动画
+  for(var i=0;i<cleared.length;i++){
+    if(cellNodes[cleared[i].x]&&cellNodes[cleared[i].y]) cellNodes[cleared[i].x][cleared[i].y].classList.add("removing");
+  }
+  var gain=cleared.length*8;score+=gain;
+  var names={lightning:"⚡闪电",tsunami:"🌊海啸",sniper:"🎯狙击"};
+  showFloater(names[type]+" +"+gain);
+  updateUI();
+  await wait(280);
+  for(var j=0;j<cleared.length;j++){
+    var c=cleared[j];
+    if(cellNodes[c.x][c.y]){cellNodes[c.x][c.y].remove();cellNodes[c.x][c.y]=null;}
+    grid[c.x][c.y]=null;
+  }
+  await applyGravity();await wait(280);
+  if(hasMatch()) await resolveBoard();
+  if(!hasAnyMove()){await wait(150);doShuffle(true);}
+  checkEnd();
+  }catch(e){console.error("useSkill error:",e);}
+  busy=false;
+}
+
+// ============ 重力下落 ============
+async function applyGravity(){
+  var newTiles=[];
+  for(var x=0;x<SIZE;x++){
+    var writeY=SIZE-1;
+    for(var y=SIZE-1;y>=0;y--){
+      if(grid[x][y]!==null){
+        if(y!==writeY){
+          grid[x][writeY]=grid[x][y];grid[x][y]=null;
+          cellNodes[x][writeY]=cellNodes[x][y];cellNodes[x][y]=null;
+          setPos(cellNodes[x][writeY],x,writeY);
+        }
+        writeY--;
+      }
+    }
+    var dropCount=writeY+1;
+    for(var ny=writeY;ny>=0;ny--){
+      var type=rand(activeTypes);
+      grid[x][ny]=type;
+      var node=makeGem(type);
+      node.style.transition="none";
+      setPos(node,x,ny-dropCount);
+      cellNodes[x][ny]=node;
+      boardEl.appendChild(node);
+      newTiles.push({node:node,x:x,targetY:ny});
+    }
+  }
+  if(newTiles.length){
+    await nextFrame();void boardEl.offsetHeight;
+    for(var i=0;i<newTiles.length;i++){
+      newTiles[i].node.style.transition="";
+      setPos(newTiles[i].node,newTiles[i].x,newTiles[i].targetY);
+    }
+  }
+}
+
+function showFloater(text){
+  var f=document.createElement("div");f.className="floater";
+  f.textContent=text;f.style.left="50%";f.style.top="45%";
+  boardEl.appendChild(f);setTimeout(function(){f.remove();},950);
+}
+
+// ============ 解锁提示 ============
+function showUnlock(icon,text){
+  unlockIcon.innerHTML=icon;unlockText.textContent=text;
+  unlockToast.classList.add("show");
+  setTimeout(function(){unlockToast.classList.remove("show");},2000);
+}
+
+// ============ 输入 ============
+function getCellFromPoint(cx,cy){
+  var rect=boardEl.getBoundingClientRect();
+  var step=parseFloat(boardEl.style.getPropertyValue("--step"))||(rect.width/SIZE);
+  var px=cx-rect.left,py=cy-rect.top;
+  if(px<0||py<0||px>rect.width||py>rect.height) return null;
+  var x=Math.floor(px/step),y=Math.floor(py/step);
+  if(x>=SIZE) x=SIZE-1; if(y>=SIZE) y=SIZE-1;
+  if(!within(x,y)) return null;
+  return{x:x,y:y};
+}
+function clearSelection(){
+  if(selected&&cellNodes[selected.x]&&cellNodes[selected.x][selected.y]) cellNodes[selected.x][selected.y].classList.remove("selected");
+  selected=null;
+}
+function setSelection(cell){
+  selected=cell;
+  if(cellNodes[cell.x]&&cellNodes[cell.x][cell.y]) cellNodes[cell.x][cell.y].classList.add("selected");
+}
+
+function handleTap(cell){
+  if(busy||ended) return;
+  // 技能模式
+  if(skillMode){
+    useSkill(skillMode,cell.x,cell.y);return;
+  }
+  // 炸弹点击
+  if(grid[cell.x][cell.y]===BOMB){explodeBomb(cell.x,cell.y);return;}
+  // 普通选择
+  if(selected===null){setSelection(cell);return;}
+  if(selected.x===cell.x&&selected.y===cell.y){clearSelection();return;}
+  if(adjacent(selected.x,selected.y,cell.x,cell.y)){
+    var s=selected;clearSelection();trySwap(s.x,s.y,cell.x,cell.y);
+  } else {clearSelection();setSelection(cell);}
+}
+
+boardEl.addEventListener("pointerdown",function(e){
+  if(busy||ended) return;
+  var c=getCellFromPoint(e.clientX,e.clientY);if(!c) return;
+  dragStart={cell:c,x:e.clientX,y:e.clientY,fired:false};
+});
+boardEl.addEventListener("pointermove",function(e){
+  if(!dragStart||dragStart.fired||busy) return;
+  var dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;
+  if(Math.abs(dx)<16&&Math.abs(dy)<16) return;
+  dragStart.fired=true;
+  var c0=dragStart.cell,tgt;
+  if(skillMode){useSkill(skillMode,c0.x,c0.y);return;}
+  if(Math.abs(dx)>Math.abs(dy)) tgt={x:c0.x+(dx>0?1:-1),y:c0.y};
+  else tgt={x:c0.x,y:c0.y+(dy>0?1:-1)};
+  if(within(tgt.x,tgt.y)){clearSelection();trySwap(c0.x,c0.y,tgt.x,tgt.y);}
+});
+boardEl.addEventListener("pointerup",function(e){
+  if(!dragStart) return;
+  if(!dragStart.fired){
+    var c=getCellFromPoint(e.clientX,e.clientY);
+    if(c&&c.x===dragStart.cell.x&&c.y===dragStart.cell.y) handleTap(c);
+  }
+  dragStart=null;
+});
+boardEl.addEventListener("pointercancel",function(){dragStart=null;});
+boardEl.addEventListener("touchmove",function(e){e.preventDefault();},{passive:false});
+
+// ============ 关卡 ============
+function startLevel(lv){
+  level=lv;
+  var cfg=levelConfig(lv);
+  var oldTypes=activeTypes;
+  activeTypes=cfg.types;target=cfg.target;movesLeft=cfg.moves;score=0;energy=0;
+  ended=false;busy=false;selected=null;skillMode=null;
+  hideOverlay();skillHintEl.classList.remove("show");
+  initGrid();layoutBoard();renderAll();updateUI();
+  // 新水果解锁提示
+  if(lv>1&&activeTypes>oldTypes){
+    var names=["","橙子","柠檬","猕猴桃","西瓜","草莓","蓝莓","🍑 桃子","🥑 牛油果","🍒 樱桃","🍍 菠萝","🍏 苹果","🍅 番茄"];
+    showUnlock("🎉","解锁 "+names[activeTypes]+"!");
+  }
+}
+function checkEnd(){
+  if(score>=target){
+    ended=true;
+    if(level>=bestLevel){bestLevel=level+1;localStorage.setItem(STORAGE_BEST,bestLevel);}
+    showOverlay(true);
+  } else if(movesLeft<=0){ended=true;showOverlay(false);}
+}
+function showOverlay(isWin){
+  overlay.className="overlay show "+(isWin?"win":"lose");
+  if(isWin){
+    overlayTitle.textContent="过关!";
+    var stars=score>=target*1.8?3:score>=target*1.3?2:1;
+    overlayStars.textContent="★".repeat(stars)+"☆".repeat(3-stars);
+    overlayText.textContent="得分 "+score+" · 下一关更难";
+    overlayBtn.textContent="下一关";
+    overlayBtn.onclick=function(){startLevel(level+1);};
+  } else {
+    overlayTitle.textContent="步数用完";
+    overlayStars.textContent="";
+    overlayText.textContent="得分 "+score+" / 目标 "+target;
+    overlayBtn.textContent="再试一次";
+    overlayBtn.onclick=function(){startLevel(level);};
+  }
+}
+function hideOverlay(){overlay.className="overlay";}
+
+// ============ 洗牌 ============
+function doShuffle(silent){
+  var vals=[];
+  for(var x=0;x<SIZE;x++) for(var y=0;y<SIZE;y++) vals.push(grid[x][y]);
+  var attempts=0;
+  do{
+    for(var i=vals.length-1;i>0;i--){var j=rand(i+1);var t=vals[i];vals[i]=vals[j];vals[j]=t;}
+    var idx=0;for(var x2=0;x2<SIZE;x2++) for(var y2=0;y2<SIZE;y2++) grid[x2][y2]=vals[idx++];
+    attempts++;
+  }while((hasMatch()||!hasAnyMove())&&attempts<60);
+  renderAll();
+  if(!silent){var f=document.createElement("div");f.className="floater";f.textContent="🔀 已洗牌";f.style.left="50%";f.style.top="45%";boardEl.appendChild(f);setTimeout(function(){f.remove();},950);}
+}
+
+// ============ 技能按钮 ============
+function activateSkill(type){
+  if(busy||ended) return;
+  var costs={lightning:30,tsunami:50,sniper:40};
+  if(energy<costs[type]) return;
+  skillMode=type;
+  var hints={lightning:"👆 点击要消除的行",tsunami:"👆 点击要消除的列",sniper:"👆 点击要炸的位置"};
+  skillHintEl.textContent=hints[type];
+  skillHintEl.classList.add("show");
+}
+skLightning.addEventListener("click",function(){activateSkill("lightning");});
+skTsunami.addEventListener("click",function(){activateSkill("tsunami");});
+skSniper.addEventListener("click",function(){activateSkill("sniper");});
+
+document.getElementById("shuffleBtn").addEventListener("click",function(){if(!busy&&!ended) doShuffle(false);});
+document.getElementById("restartBtn").addEventListener("click",function(){if(!busy) startLevel(level);});
+window.addEventListener("resize",function(){if(!busy) layoutBoard();});
+document.addEventListener("gesturestart",function(e){e.preventDefault();});
+
+// ============ 启动 ============
+buildBackground();
+startLevel(bestLevel&&bestLevel>=1?bestLevel:1);
+})();
+</script>
+</body>
+</html>
