@@ -1149,7 +1149,12 @@ document.addEventListener("gesturestart",function(e){e.preventDefault();});
 // ============ 主界面按钮 ============
 document.getElementById("btnStart").addEventListener("click",function(){
   document.getElementById("homeScreen").classList.add("hide");
-  if(!lsPanel||!lsPanel.classList.contains("show")) showLevelSelect();
+  // 确保 DOM 存在
+  if(!lsPanel) lsPanel=document.getElementById("levelSelect");
+  if(!lsGrid) lsGrid=document.getElementById("lsGrid");
+  if(!lsPanel){console.error("levelSelect not found");startLevel(1);return;}
+  lsPanel.classList.add("show");
+  if(lsGrid.children.length===0) showLevelSelect();
 });
 document.getElementById("btnSettings").addEventListener("click",function(){
   alert("⚙️ 设置\n音效: 浏览器默认\n难度: 自适应\n\n更多设置敬请期待~");
