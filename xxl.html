@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#9cd8f0">
 <title>消消乐</title>
 <style>
@@ -1178,12 +1178,19 @@ showLevelSelect=function(){
 
 // ============ 启动 ============
 try{
+  // 确保主界面可见
+  var home=document.getElementById("homeScreen");
+  if(home){home.classList.remove("hide");home.style.display="flex";}
+  var ls=document.getElementById("levelSelect");
+  if(ls){ls.classList.remove("show");}
+
   SIZE=8;activeTypes=levelConfig(1).types;
   layoutBoard();buildBackground();
   if(LEVELS.length>0){
     updateHomeFooter();
-    // 主界面可见，等玩家点击开始
-  } else startLevel(1);
+  } else {
+    startLevel(1);
+  }
 }catch(e){
   console.error("Init error:",e);
   SIZE=8;activeTypes=6;
