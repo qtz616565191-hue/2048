@@ -907,16 +907,15 @@ var lsPanel=document.getElementById("levelSelect");
 lsBack.addEventListener("click",function(){lsPanel.classList.remove("show");});
 
 function showLevelSelect(){
-  busy=false;ended=false; // 强制解除锁定
+  busy=false;ended=false;
+  if(!lsGrid){lsGrid=document.getElementById("lsGrid");if(!lsGrid)return;}
+  if(!lsPanel){lsPanel=document.getElementById("levelSelect");if(!lsPanel)return;}
   lsGrid.innerHTML="";var totalStars=0;var unlocked=getBestLevel();
   for(var i=1;i<=LEVELS.length;i++){
     var cfg=levelConfig(i);var unlocked2=i<=unlocked;var stars=getStarsForLv(i);totalStars+=stars;
     var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(i===level?" current":"");
     card.innerHTML='<div class="ls-num">'+(unlocked2?i:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
-    if(unlocked2) card.addEventListener("click",function(){
-      lsPanel.classList.remove("show");
-      requestAnimationFrame(function(){startLevel(i);});
-    });
+    if(unlocked2) card.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(i);});
     else card.addEventListener("click",function(){card.style.animation="shake .4s ease";setTimeout(function(){card.style.animation=""},400);});
     // 依次弹入动画
     card.style.opacity="0";card.style.transform="translateY(30px)";
@@ -1105,16 +1104,16 @@ window.addEventListener("resize",function(){if(!busy) layoutBoard();});
 document.addEventListener("gesturestart",function(e){e.preventDefault();});
 
 // ============ 启动 ============
-SIZE=8;activeTypes=levelConfig(1).types; // 确保默认值
-layoutBoard();
-buildBackground();
-// 等 DOM 稳定后显示选关
-requestAnimationFrame(function(){
-  requestAnimationFrame(function(){
-    if(LEVELS.length>0){showLevelSelect();}
-    else{console.error("LEVELS empty!");startLevel(1);}
-  });
-});
+try{
+  SIZE=8;activeTypes=levelConfig(1).types;
+  layoutBoard();buildBackground();
+  if(LEVELS.length>0) showLevelSelect(); else startLevel(1);
+}catch(e){
+  console.error("Init error:",e);
+  SIZE=8;activeTypes=6;
+  try{layoutBoard();buildBackground();initGrid();renderAll();updateUI();}catch(e2){}
+  startLevel(1);
+}
 })();
 </script>
 </body>
