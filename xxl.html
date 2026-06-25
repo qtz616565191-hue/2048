@@ -952,10 +952,12 @@ lsBack.addEventListener("click",function(){lsPanel.classList.remove("show");var 
 
 function showLevelSelect(){
   busy=false;ended=false;
-  if(!lsGrid){lsGrid=document.getElementById("lsGrid");if(!lsGrid)return;}
-  if(!lsPanel){lsPanel=document.getElementById("levelSelect");if(!lsPanel)return;}
+  if(!lsGrid){lsGrid=document.getElementById("lsGrid");if(!lsGrid){console.error("lsGrid not found");return;}}
+  if(!lsPanel){lsPanel=document.getElementById("levelSelect");if(!lsPanel){console.error("lsPanel not found");return;}}
+  if(!lsStats){lsStats=document.getElementById("lsStats");}
   lsGrid.innerHTML="";var totalStars=0;
   var list=getLevelList();
+  if(list.length===0){lsGrid.innerHTML='<div style="color:#fff;padding:20px">暂无关卡数据</div>';return;}
   for(var i=0;i<list.length;i++){
     var item=list[i];var lv=item.lv;var cfg=levelConfig(lv);var unlocked2=item.unlocked;var stars=item.stars;totalStars+=stars;
     var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(lv===level?" current":"");
@@ -969,7 +971,7 @@ function showLevelSelect(){
     lsGrid.appendChild(card);
   }
   lsStats.textContent="⭐ "+totalStars+"/"+(list.length*3);
-  lsPanel.classList.add("show");
+  lsPanel.style.display="flex";lsPanel.classList.add("show");
 }
 function getBestLevel(){try{return Math.max(1,+(localStorage.getItem(STORAGE_BEST)||1))}catch(e){return 1}}
 
