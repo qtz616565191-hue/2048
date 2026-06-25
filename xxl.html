@@ -171,7 +171,8 @@
   </div>
   <div class="container">
     <header>
-      <div class="level-pill" style="cursor:pointer" onclick="event.stopPropagation();showLevelSelect()" title="选择关卡">📋 <span id="level">1</span></div>
+      <button class="btn-sm btn-ghost" style="padding:6px 12px;font-size:13px" onclick="if(!busy)showLevelSelect()">← 返回</button>
+      <div class="level-pill">第 <span id="level">1</span> 关</div>
       <div class="scores">
         <div class="score-box"><div class="label">分数</div><div class="value" id="score">0</div></div>
         <div class="score-box"><div class="label">步数</div><div class="value" id="moves">20</div></div>
@@ -947,7 +948,7 @@ function shakeBoard(){var b=boardWrap;b.classList.add("shake");setTimeout(functi
 // ============ 关卡选择 ============
 var lsGrid=document.getElementById("lsGrid"),lsStats=document.getElementById("lsStats"),lsBack=document.getElementById("lsBack");
 var lsPanel=document.getElementById("levelSelect");
-lsBack.addEventListener("click",function(){lsPanel.classList.remove("show");document.getElementById("homeScreen").classList.remove("hide");updateHomeFooter();});
+lsBack.addEventListener("click",function(){lsPanel.classList.remove("show");var h=document.getElementById("homeScreen");if(h)h.classList.remove("hide");updateHomeFooter();});
 
 function showLevelSelect(){
   busy=false;ended=false;
@@ -959,10 +960,10 @@ function showLevelSelect(){
     var item=list[i];var lv=item.lv;var cfg=levelConfig(lv);var unlocked2=item.unlocked;var stars=item.stars;totalStars+=stars;
     var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(lv===level?" current":"");
     card.innerHTML='<div class="ls-num">'+(unlocked2?lv:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
-    (function(lvl,el){
-      if(unlocked2) el.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(lvl);});
+    (function(lvl,el,unl){
+      if(unl) el.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(lvl);});
       else el.addEventListener("click",function(){el.style.animation="shake .4s ease";setTimeout(function(){el.style.animation=""},400);});
-    })(lv,card);
+    })(lv,card,unlocked2);
     card.style.opacity="0";card.style.transform="translateY(30px)";
     setTimeout(function(){card.style.transition="all .3s";card.style.opacity="1";card.style.transform="";},i*40);
     lsGrid.appendChild(card);
@@ -1112,7 +1113,7 @@ function showOverlay(isWin,prevStars){
   var ovNext=document.getElementById("ovNext"),ovRetry=document.getElementById("ovRetry"),ovBack=document.getElementById("ovBack");
   if(ovNext) ovNext.onclick=function(){startLevel(Math.min(level+1,LEVELS.length));};
   if(ovRetry) ovRetry.onclick=function(){startLevel(level);};
-  if(ovBack) ovBack.onclick=function(){hideOverlay();document.getElementById("homeScreen").classList.remove("hide");updateHomeFooter();};
+  if(ovBack) ovBack.onclick=function(){hideOverlay();showLevelSelect();};
 }
 function hideOverlay(){overlay.className="overlay";}
 
