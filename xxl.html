@@ -912,6 +912,9 @@ function showLevelSelect(){
     card.innerHTML='<div class="ls-num">'+(unlocked2?i:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
     if(unlocked2) card.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(i);});
     else card.addEventListener("click",function(){card.style.animation="shake .4s ease";setTimeout(function(){card.style.animation=""},400);});
+    // 依次弹入动画
+    card.style.opacity="0";card.style.transform="translateY(30px)";
+    setTimeout(function(){card.style.transition="all .3s cubic-bezier(.34,1.56,.64,1)";card.style.opacity="1";card.style.transform="";},i*40);
     lsGrid.appendChild(card);
   }
   lsStats.textContent="⭐ "+totalStars+"/"+(LEVELS.length*3);
@@ -1096,10 +1099,9 @@ window.addEventListener("resize",function(){if(!busy) layoutBoard();});
 document.addEventListener("gesturestart",function(e){e.preventDefault();});
 
 // ============ 启动 ============
+layoutBoard(); // 先算布局让CSS变量到位
 buildBackground();
-var initLv=getBestLevel();
-startLevel(initLv);
-setTimeout(function(){showLevelSelect();},600); // 先加载再显示选关
+showLevelSelect(); // 直接显示选关，等玩家选择了再startLevel
 })();
 </script>
 </body>
