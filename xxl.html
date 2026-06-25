@@ -94,6 +94,22 @@
   .btn-ghost{background:#fff;color:#5a7a8a;box-shadow:0 3px 0 #cfe3ec,0 5px 10px rgba(90,122,138,.12);text-shadow:none;padding:10px 14px;font-size:12px;border-radius:12px;transition:all .15s ease}
   .btn-ghost:active{box-shadow:0 1px 0 #cfe3ec;transform:translateY(2px)}
   .btn-ghost.disabled{opacity:.35;pointer-events:none;filter:grayscale(.5)}
+  /* 关卡选择 */
+  .level-select{position:fixed;inset:0;background:linear-gradient(180deg,#d8f0f8,#9cd8f0);z-index:100;display:flex;flex-direction:column;overflow:hidden;transform:translateY(100%);transition:transform .4s cubic-bezier(.4,0,.2,1)}
+  .level-select.show{transform:translateY(0)}
+  .level-select .ls-header{display:flex;align-items:center;padding:12px 16px;gap:12px;background:rgba(255,255,255,.5)}
+  .level-select .ls-title{font-size:20px;font-weight:800;color:#5a7a8a;flex:1;text-align:center}
+  .level-select .ls-stats{font-size:12px;color:#7aa8c0;text-align:center;padding:4px 12px;background:rgba(255,255,255,.4);border-radius:10px}
+  .level-select .ls-grid{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-content:start;-webkit-overflow-scrolling:touch}
+  .ls-card{border-radius:16px;background:#fff;padding:14px 8px;text-align:center;cursor:pointer;box-shadow:0 3px 0 #cfe3ec,0 4px 10px rgba(90,122,138,.1);transition:transform .15s;position:relative}
+  .ls-card:active{transform:scale(.93)}
+  .ls-card.locked{opacity:.4;filter:grayscale(.5);cursor:not-allowed;box-shadow:0 2px 0 #ddd,0 2px 6px rgba(0,0,0,.05)}
+  .ls-card.current{border:3px solid #ff8c5a;box-shadow:0 0 16px rgba(255,140,90,.4)}
+  .ls-card .ls-num{font-size:26px;font-weight:800;color:#5a7a8a}
+  .ls-card .ls-name{font-size:8px;color:#9c8f80;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ls-card .ls-stars{font-size:13px;letter-spacing:1px;line-height:1}
+  .ls-card.locked .ls-num{color:#bbb}
+  .ls-card.locked .ls-name{color:#ccc}
   /* 技能栏 */
   .skill-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
   .skill-btn{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;min-width:auto;padding:9px 14px}
@@ -112,7 +128,7 @@
 <body>
   <div class="container">
     <header>
-      <div class="level-pill">第 <span id="level">1</span> 关</div>
+      <div class="level-pill" style="cursor:pointer" onclick="event.stopPropagation();showLevelSelect()" title="选择关卡">📋 <span id="level">1</span></div>
       <div class="scores">
         <div class="score-box"><div class="label">分数</div><div class="value" id="score">0</div></div>
         <div class="score-box"><div class="label">步数</div><div class="value" id="moves">20</div></div>
@@ -154,6 +170,15 @@
       <button class="btn btn-ghost" id="restartBtn">🔄</button>
     </div>
     <div class="footer-tip" id="footerTip">点选水果交换 · 滑动也行 · 💣点炸弹引爆 · 🌈彩虹与任意水果交换</div>
+  </div>
+  <!-- 关卡选择 -->
+  <div class="level-select" id="levelSelect">
+    <div class="ls-header">
+      <button class="btn btn-sm btn-ghost" id="lsBack">← 返回</button>
+      <div class="ls-title">选择关卡</div>
+      <div class="ls-stats" id="lsStats">⭐ 0/60</div>
+    </div>
+    <div class="ls-grid" id="lsGrid"></div>
   </div>
   <!-- 解锁提示 -->
   <div class="unlock-toast" id="unlockToast"><div class="icon" id="unlockIcon"></div><h3 id="unlockText"></h3></div>
@@ -873,6 +898,26 @@ function spawnParticles(x,y,count,color){
 function shakeBoard(){var b=boardWrap;b.classList.add("shake");setTimeout(function(){b.classList.remove("shake")},500);}
 
 // ============ 解锁提示 ============
+// ============ 关卡选择 ============
+var lsGrid=document.getElementById("lsGrid"),lsStats=document.getElementById("lsStats"),lsBack=document.getElementById("lsBack");
+var lsPanel=document.getElementById("levelSelect");
+lsBack.addEventListener("click",function(){lsPanel.classList.remove("show");});
+
+function showLevelSelect(){
+  lsGrid.innerHTML="";var totalStars=0;var unlocked=getBestLevel();
+  for(var i=1;i<=LEVELS.length;i++){
+    var cfg=levelConfig(i);var unlocked2=i<=unlocked;var stars=getStarsForLv(i);totalStars+=stars;
+    var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(i===level?" current":"");
+    card.innerHTML='<div class="ls-num">'+(unlocked2?i:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
+    if(unlocked2) card.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(i);});
+    else card.addEventListener("click",function(){card.style.animation="shake .4s ease";setTimeout(function(){card.style.animation=""},400);});
+    lsGrid.appendChild(card);
+  }
+  lsStats.textContent="⭐ "+totalStars+"/"+(LEVELS.length*3);
+  lsPanel.classList.add("show");
+}
+function getBestLevel(){try{return Math.max(1,+(localStorage.getItem(STORAGE_BEST)||1))}catch(e){return 1}}
+
 function showUnlock(icon,text){
   unlockIcon.innerHTML=icon;unlockText.textContent=text;
   unlockToast.classList.add("show");
@@ -1037,7 +1082,9 @@ document.addEventListener("gesturestart",function(e){e.preventDefault();});
 
 // ============ 启动 ============
 buildBackground();
-startLevel(bestLevel&&bestLevel>=1?bestLevel:1);
+var initLv=getBestLevel();
+startLevel(initLv);
+setTimeout(function(){showLevelSelect();},600); // 先加载再显示选关
 })();
 </script>
 </body>
