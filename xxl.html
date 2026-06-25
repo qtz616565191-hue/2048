@@ -674,7 +674,7 @@ async function resolveBoard(){
   try{
   var combo=0;
   while(hasMatch()){
-    combo++;
+    combo++;if(combo>maxCombo)maxCombo=combo;
     var info=findMatchInfo();
     var matched=info.matched, groups=info.groups;
     // 判定特殊：L/T形→炸弹, 4连→条纹, 5连→彩虹
@@ -992,7 +992,7 @@ function startLevel(lv){
   level=lv;
   var cfg=levelConfig(lv);
   var oldTypes=activeTypes;
-  SIZE=cfg.size||8;activeTypes=cfg.types;movesLeft=cfg.moves;score=0;energy=0;curLevelStars=0;
+  SIZE=cfg.size||8;activeTypes=cfg.types;movesLeft=cfg.moves;score=0;energy=0;curLevelStars=0;maxCombo=0;
   ended=false;busy=false;selected=null;skillMode=null;
   initGoals(cfg);initObstacles(cfg);
   hideOverlay();skillHintEl.classList.remove("show");
@@ -1019,13 +1019,14 @@ function checkEnd(){
     showOverlay(true,prevStars);
   } else if(movesLeft<=0){ended=true;showOverlay(false,0);}
 }
+var maxCombo=0;
+
 function showOverlay(isWin,prevStars){
   overlay.className="overlay show "+(isWin?"win":"lose");
-  var cfg=levelConfig(level);
+  var cfg=levelConfig(level);var btnHTML="";
   if(isWin){
     var s=curLevelStars||1;var isNewRecord=prevStars!==undefined&&s>prevStars;
     overlayTitle.textContent="🎉 "+cfg.name+" 通关!";
-    // 星级弹跳动画
     overlayStars.innerHTML="";
     for(var si=1;si<=3;si++){
       var span=document.createElement("span");span.textContent=si<=s?"⭐":"☆";
@@ -1033,17 +1034,29 @@ function showOverlay(isWin,prevStars){
       span.style.animation="scoreBounce .5s ease "+(si*0.2)+"s forwards";
       overlayStars.appendChild(span);
     }
-    var recordHTML=isNewRecord?' <span style="color:#ff8c5a;font-size:14px;animation:pulse .8s infinite">🏆 新纪录!</span>':"";
-    overlayText.innerHTML="得分 "+score+" · 剩 "+movesLeft+" 步 · "+s+"星"+recordHTML;
-    overlayBtn.textContent=level>=LEVELS.length?"🏆 全部通关!":"下一关";
-    overlayBtn.onclick=function(){startLevel(Math.min(level+1,LEVELS.length));};
+    var recHTML=isNewRecord?' <span style="color:#ff8c5a;animation:pulse .8s infinite">🏆 新纪录!</span>':"";
+    overlayText.innerHTML="得分 "+score+" · 组合 "+maxCombo+"x · "+s+"星"+recHTML;
+    btnHTML='<button class="btn" style="margin:2px" id="ovNext">'+(level>=LEVELS.length?"🏆 通关!":"下一关")+'</button>';
+    btnHTML+='<button class="btn btn-ghost" style="margin:2px" id="ovRetry">再玩一次</button>';
+    btnHTML+='<button class="btn btn-ghost" style="margin:2px;font-size:11px" id="ovBack">返回选关</button>';
   } else {
-    overlayTitle.textContent="步数用完";
-    overlayStars.textContent="";
-    overlayText.textContent="得分 "+score+" / 目标 "+target;
-    overlayBtn.textContent="再试一次";
-    overlayBtn.onclick=function(){startLevel(level);};
+    var remaining="";
+    if(goalState){
+      if(goalTypes.indexOf("score")>=0) remaining="还差 "+(goalState.score.target-goalState.score.current)+" 分";
+      else if(goalState.collect.length>0) remaining="还差 "+goalState.collect.map(function(c){return c.target-c.current}).join("/")+" 个";
+    }
+    var msgs=["差一点点！","再试一次！","别灰心~","下次一定行！","就差一步！"];
+    overlayTitle.textContent=msgs[Math.floor(Math.random()*msgs.length)];
+    overlayStars.textContent="😢";
+    overlayText.innerHTML="得分 "+score+" · 最大组合 "+maxCombo+"x<br>"+remaining;
+    btnHTML='<button class="btn" style="margin:2px" id="ovRetry">再来一次</button>';
+    btnHTML+='<button class="btn btn-ghost" style="margin:2px" id="ovBack">返回选关</button>';
   }
+  overlayBtn.innerHTML=btnHTML;
+  var ovNext=document.getElementById("ovNext"),ovRetry=document.getElementById("ovRetry"),ovBack=document.getElementById("ovBack");
+  if(ovNext) ovNext.onclick=function(){startLevel(Math.min(level+1,LEVELS.length));};
+  if(ovRetry) ovRetry.onclick=function(){startLevel(level);};
+  if(ovBack) ovBack.onclick=function(){hideOverlay();showLevelSelect();};
 }
 function hideOverlay(){overlay.className="overlay";}
 
