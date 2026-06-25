@@ -904,6 +904,7 @@ var lsPanel=document.getElementById("levelSelect");
 lsBack.addEventListener("click",function(){lsPanel.classList.remove("show");});
 
 function showLevelSelect(){
+  busy=false;ended=false; // 强制解除锁定
   lsGrid.innerHTML="";var totalStars=0;var unlocked=getBestLevel();
   for(var i=1;i<=LEVELS.length;i++){
     var cfg=levelConfig(i);var unlocked2=i<=unlocked;var stars=getStarsForLv(i);totalStars+=stars;
@@ -1011,6 +1012,7 @@ function calcStars(){
 function getStarsForLv(lv){try{var d=JSON.parse(localStorage.getItem("xxl_stars")||"{}");return d[lv]||0;}catch(e){return 0;}}
 
 function checkEnd(){
+  if(ended) return; // 已结束不重复弹窗
   if(isGoalsComplete()){
     ended=true;curLevelStars=calcStars();
     var prevStars=getStarsForLv(level);
