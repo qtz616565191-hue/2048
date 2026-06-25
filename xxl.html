@@ -94,22 +94,6 @@
   .btn-ghost{background:#fff;color:#5a7a8a;box-shadow:0 3px 0 #cfe3ec,0 5px 10px rgba(90,122,138,.12);text-shadow:none;padding:10px 14px;font-size:12px;border-radius:12px;transition:all .15s ease}
   .btn-ghost:active{box-shadow:0 1px 0 #cfe3ec;transform:translateY(2px)}
   .btn-ghost.disabled{opacity:.35;pointer-events:none;filter:grayscale(.5)}
-  /* 关卡选择 */
-  .level-select{position:fixed;inset:0;background:linear-gradient(180deg,#d8f0f8,#9cd8f0);z-index:100;display:flex;flex-direction:column;overflow:hidden;transform:translateY(100%);transition:transform .4s cubic-bezier(.4,0,.2,1)}
-  .level-select.show{transform:translateY(0)}
-  .level-select .ls-header{display:flex;align-items:center;padding:12px 16px;gap:12px;background:rgba(255,255,255,.5)}
-  .level-select .ls-title{font-size:20px;font-weight:800;color:#5a7a8a;flex:1;text-align:center}
-  .level-select .ls-stats{font-size:12px;color:#7aa8c0;text-align:center;padding:4px 12px;background:rgba(255,255,255,.4);border-radius:10px}
-  .level-select .ls-grid{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-content:start;-webkit-overflow-scrolling:touch}
-  .ls-card{border-radius:16px;background:#fff;padding:14px 8px;text-align:center;cursor:pointer;box-shadow:0 3px 0 #cfe3ec,0 4px 10px rgba(90,122,138,.1);transition:transform .15s;position:relative}
-  .ls-card:active{transform:scale(.93)}
-  .ls-card.locked{opacity:.4;filter:grayscale(.5);cursor:not-allowed;box-shadow:0 2px 0 #ddd,0 2px 6px rgba(0,0,0,.05)}
-  .ls-card.current{border:3px solid #ff8c5a;box-shadow:0 0 16px rgba(255,140,90,.4)}
-  .ls-card .ls-num{font-size:26px;font-weight:800;color:#5a7a8a}
-  .ls-card .ls-name{font-size:8px;color:#9c8f80;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ls-card .ls-stars{font-size:13px;letter-spacing:1px;line-height:1}
-  .ls-card.locked .ls-num{color:#bbb}
-  .ls-card.locked .ls-name{color:#ccc}
   /* 技能栏 */
   .skill-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
   .skill-btn{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;min-width:auto;padding:9px 14px}
@@ -214,15 +198,6 @@
       <button class="btn btn-ghost" id="restartBtn">🔄</button>
     </div>
     <div class="footer-tip" id="footerTip">点选水果交换 · 滑动也行 · 💣点炸弹引爆 · 🌈彩虹与任意水果交换</div>
-  </div>
-  <!-- 关卡选择 -->
-  <div class="level-select" id="levelSelect">
-    <div class="ls-header">
-      <button class="btn btn-sm btn-ghost" id="lsBack">← 返回</button>
-      <div class="ls-title">选择关卡</div>
-      <div class="ls-stats" id="lsStats">⭐ 0/60</div>
-    </div>
-    <div class="ls-grid" id="lsGrid"></div>
   </div>
   <!-- 解锁提示 -->
   <div class="unlock-toast" id="unlockToast"><div class="icon" id="unlockIcon"></div><h3 id="unlockText"></h3></div>
@@ -946,33 +921,8 @@ function shakeBoard(){var b=boardWrap;b.classList.add("shake");setTimeout(functi
 
 // ============ 解锁提示 ============
 // ============ 关卡选择 ============
-var lsGrid=document.getElementById("lsGrid"),lsStats=document.getElementById("lsStats"),lsBack=document.getElementById("lsBack");
-var lsPanel=document.getElementById("levelSelect");
-lsBack.addEventListener("click",function(){lsPanel.classList.remove("show");var h=document.getElementById("homeScreen");if(h)h.classList.remove("hide");updateHomeFooter();});
+var lsGrid=null,lsStats=null,lsBack=null,lsPanel=null;
 
-function showLevelSelect(){
-  busy=false;ended=false;
-  if(!lsGrid){lsGrid=document.getElementById("lsGrid");if(!lsGrid){console.error("lsGrid not found");return;}}
-  if(!lsPanel){lsPanel=document.getElementById("levelSelect");if(!lsPanel){console.error("lsPanel not found");return;}}
-  if(!lsStats){lsStats=document.getElementById("lsStats");}
-  lsGrid.innerHTML="";var totalStars=0;
-  var list=getLevelList();
-  if(list.length===0){lsGrid.innerHTML='<div style="color:#fff;padding:20px">暂无关卡数据</div>';return;}
-  for(var i=0;i<list.length;i++){
-    var item=list[i];var lv=item.lv;var cfg=levelConfig(lv);var unlocked2=item.unlocked;var stars=item.stars;totalStars+=stars;
-    var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(lv===level?" current":"");
-    card.innerHTML='<div class="ls-num">'+(unlocked2?lv:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
-    (function(lvl,el,unl){
-      if(unl) el.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(lvl);});
-      else el.addEventListener("click",function(){el.style.animation="shake .4s ease";setTimeout(function(){el.style.animation=""},400);});
-    })(lv,card,unlocked2);
-    card.style.opacity="0";card.style.transform="translateY(30px)";
-    setTimeout(function(){card.style.transition="all .3s";card.style.opacity="1";card.style.transform="";},i*40);
-    lsGrid.appendChild(card);
-  }
-  lsStats.textContent="⭐ "+totalStars+"/"+(list.length*3);
-  lsPanel.style.display="flex";lsPanel.classList.add("show");
-}
 function getBestLevel(){try{return Math.max(1,+(localStorage.getItem(STORAGE_BEST)||1))}catch(e){return 1}}
 
 function showUnlock(icon,text){
@@ -1065,7 +1015,6 @@ function calcStars(){
   if(hasScore){var scoreRatio=goalState.score.current/Math.max(1,goalState.score.target);return ratio>0.25||scoreRatio>1.4?3:ratio>0.08||scoreRatio>1.15?2:1;}
   return ratio>0.25?3:ratio>0.08?2:1;
 }
-function getLevelList(){return LEVELS.map(function(l){return{lv:l.lv,name:l.name,stars:getStarsForLv(l.lv),unlocked:l.lv<=getBestLevel()}});}
 function getStarsForLv(lv){try{var d=JSON.parse(localStorage.getItem("xxl_stars")||"{}");return d[lv]||0;}catch(e){return 0;}}
 
 function checkEnd(){
@@ -1115,7 +1064,7 @@ function showOverlay(isWin,prevStars){
   var ovNext=document.getElementById("ovNext"),ovRetry=document.getElementById("ovRetry"),ovBack=document.getElementById("ovBack");
   if(ovNext) ovNext.onclick=function(){startLevel(Math.min(level+1,LEVELS.length));};
   if(ovRetry) ovRetry.onclick=function(){startLevel(level);};
-  if(ovBack) ovBack.onclick=function(){hideOverlay();showLevelSelect();};
+  if(ovBack) ovBack.onclick=function(){hideOverlay();var h=document.getElementById("homeScreen");if(h)h.classList.remove("hide");updateHomeFooter();};
 }
 function hideOverlay(){overlay.className="overlay";}
 
@@ -1147,7 +1096,7 @@ skLightning.addEventListener("click",function(){activateSkill("lightning");});
 skTsunami.addEventListener("click",function(){activateSkill("tsunami");});
 skSniper.addEventListener("click",function(){activateSkill("sniper");});
 
-document.getElementById("backToSelectBtn").addEventListener("click",function(){busy=false;ended=false;showLevelSelect();});
+document.getElementById("backToSelectBtn").addEventListener("click",function(){busy=false;ended=false;var h=document.getElementById("homeScreen");if(h)h.classList.remove("hide");updateHomeFooter();});
 document.getElementById("shuffleBtn").addEventListener("click",function(){if(!busy&&!ended) doShuffle(false);});
 document.getElementById("restartBtn").addEventListener("click",function(){if(!busy) startLevel(level);});
 window.addEventListener("resize",function(){if(!busy) layoutBoard();});
@@ -1156,12 +1105,7 @@ document.addEventListener("gesturestart",function(e){e.preventDefault();});
 // ============ 主界面按钮 ============
 document.getElementById("btnStart").addEventListener("click",function(){
   document.getElementById("homeScreen").classList.add("hide");
-  // 确保 DOM 存在
-  if(!lsPanel) lsPanel=document.getElementById("levelSelect");
-  if(!lsGrid) lsGrid=document.getElementById("lsGrid");
-  if(!lsPanel){console.error("levelSelect not found");startLevel(1);return;}
-  lsPanel.classList.add("show");
-  if(lsGrid.children.length===0) showLevelSelect();
+  startLevel(getBestLevel());
 });
 document.getElementById("btnSettings").addEventListener("click",function(){
   alert("⚙️ 设置\n音效: 浏览器默认\n难度: 自适应\n\n更多设置敬请期待~");
@@ -1178,26 +1122,13 @@ function updateHomeFooter(){
   for(var i=1;i<=LEVELS.length;i++) total+=getStarsForLv(i);
   var el=document.getElementById("homeFooter");if(el)el.textContent="已通关 "+(unlocked-1)+" 关 · ⭐ "+total+"/"+LEVELS.length*3;
 }
-var origShowLS=showLevelSelect;
-showLevelSelect=function(){
-  origShowLS();updateHomeFooter();
-};
-
 // ============ 启动 ============
 try{
-  // 确保主界面可见
   var home=document.getElementById("homeScreen");
   if(home){home.classList.remove("hide");home.style.display="flex";}
-  var ls=document.getElementById("levelSelect");
-  if(ls){ls.classList.remove("show");}
-
-  SIZE=8;activeTypes=levelConfig(1).types;
+  SIZE=8;activeTypes=6;
   layoutBoard();buildBackground();
-  if(LEVELS.length>0){
-    updateHomeFooter();
-  } else {
-    startLevel(1);
-  }
+  updateHomeFooter();
 }catch(e){
   console.error("Init error:",e);
   SIZE=8;activeTypes=6;
