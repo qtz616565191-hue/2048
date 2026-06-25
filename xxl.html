@@ -33,8 +33,12 @@
   .progress-wrap{height:12px;background:#fff;border-radius:7px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(90,122,138,0.15)}
   .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#ffd95e,#ff8c5a);border-radius:7px;transition:width .4s ease;position:relative}
   .progress-bar::after{content:"";position:absolute;left:0;right:0;top:0;height:45%;background:linear-gradient(180deg,rgba(255,255,255,.5),transparent);border-radius:7px 7px 0 0}
-  .progress-meta{display:flex;justify-content:space-between;font-size:10px;opacity:.75;padding:0 2px;font-weight:600}
+  .progress-meta{display:flex;justify-content:space-between;align-items:center;font-size:10px;opacity:.9;padding:0 2px;font-weight:600;gap:4px;flex-wrap:wrap}
   .progress-meta strong{color:#ff8c5a}
+  .goal-collect{display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,.7);border-radius:8px;padding:1px 6px;font-size:11px}
+  .ice-tile{transition:opacity .3s}
+  .gem.ice-crack .gem-inner{animation:iceBreak .5s ease}
+  @keyframes iceBreak{0%{filter:brightness(1)}50%{filter:brightness(3) drop-shadow(0 0 12px #fff)}100%{filter:brightness(1)}}
   /* 棋盘 */
   .board-wrap{position:relative;width:100%;aspect-ratio:1/1;background:rgba(255,255,255,.7);border-radius:20px;touch-action:none;overflow:hidden;box-shadow:0 8px 0 rgba(120,160,180,.25),0 12px 28px rgba(90,122,138,.2);backdrop-filter:blur(6px)}
   .board{position:absolute;inset:0}
@@ -227,23 +231,48 @@ function isRainbow(v){return v===RAINBOW}
 function isStriped(v){return v===STRIPED_H||v===STRIPED_V}
 function isSpecial(v){return v===BOMB||v===RAINBOW||isStriped(v)}
 
-// ============ 关卡配置 ============
+// ============ 关卡配置(多目标+障碍)============
+var iceGrid=null; // null或SIZE*SIZE数组: 0=无冰 1=一层 2=两层
+var goalState=null; // {score:{current,target},collect:{fruit,current,target}[],ice:{current,target}}
+var goalTypes=[]; // ['score','collect','ice']...
+
 function levelConfig(lv){
-  var types;
-  if(lv<=2) types=6;
-  else if(lv<=4) types=7;
-  else if(lv<=6) types=8;
-  else if(lv<=8) types=9;
-  else if(lv<=10) types=10;
-  else if(lv<=12) types=11;
-  else types=12;
-  var tgt,mov;
-  if(lv<=2){tgt=600+(lv-1)*200;mov=22;}
-  else if(lv<=5){tgt=800+(lv-1)*250;mov=22;}
-  else if(lv<=7){tgt=1100+(lv-3)*200;mov=21;}
-  else if(lv<=9){tgt=1400+(lv-5)*250;mov=20;}
-  else{tgt=2000+(lv-10)*300;mov=20;}
-  return{types:types,target:tgt,moves:mov};
+  var cfg={types:Math.min(12,5+Math.floor((lv-1)/2)),moves:Math.max(14,23-Math.floor(lv/3))};
+  cfg.goals=[{type:"score",target:500+lv*200}];
+  // 第4关起加收集目标
+  if(lv>=4) cfg.goals.push({type:"collect",fruit:rand(6),target:8+lv*2});
+  // 第7关起加冰块
+  if(lv>=7){cfg.iceCount=6+lv*2;cfg.goals.push({type:"ice",target:cfg.iceCount});}
+  // 第10关起混搭
+  if(lv>=10){cfg.goals=[{type:"score",target:800+lv*300},{type:"collect",fruit:rand(8),target:15+lv*2}];if(lv>=13)cfg.goals.push({type:"ice",target:10+lv*3});}
+  return cfg;
+}
+
+function initGoals(cfg){
+  goalState={score:{current:0,target:0},collect:[],ice:{current:0,target:0}};
+  goalTypes=[];
+  for(var i=0;i<cfg.goals.length;i++){
+    var g=cfg.goals[i];
+    if(g.type==="score"){goalState.score.target=g.target;goalTypes.push("score")}
+    else if(g.type==="collect"){goalState.collect.push({fruit:g.fruit,current:0,target:g.target});goalTypes.push("collect")}
+    else if(g.type==="ice"){goalState.ice.target=g.target;goalTypes.push("ice")}
+  }
+}
+
+function isGoalsComplete(){
+  if(goalState.score.current<goalState.score.target) return false;
+  for(var i=0;i<goalState.collect.length;i++){if(goalState.collect[i].current<goalState.collect[i].target)return false;}
+  if(goalState.ice.current<goalState.ice.target) return false;
+  return true;
+}
+
+function initIceGrid(iceCount){
+  iceGrid=emptyGrid();
+  var placed=0;
+  while(placed<iceCount){
+    var x=rand(SIZE),y=rand(SIZE);
+    if(iceGrid[x][y]===0){iceGrid[x][y]=lv>=10?2:1;placed++;}
+  }
 }
 
 // ============ 初始化棋盘 ============
@@ -348,7 +377,7 @@ function makeGem(type){
 }
 function setPos(node,x,y){node.style.setProperty("--x",x);node.style.setProperty("--y",y);}
 function renderAll(){
-  var old=boardEl.querySelectorAll(".gem");
+  var old=boardEl.querySelectorAll(".gem,.ice-tile");
   old.forEach(function(n){n.remove();});
   cellNodes=emptyGrid();
   for(var x=0;x<SIZE;x++) for(var y=0;y<SIZE;y++){
@@ -357,21 +386,44 @@ function renderAll(){
     setPos(node,x,y);
     cellNodes[x][y]=node;
     boardEl.appendChild(node);
+    // 冰块覆盖层
+    if(iceGrid&&iceGrid[x][y]>0){
+      var ice=document.createElement("div");
+      ice.className="ice-tile";ice.setAttribute("data-x",x);ice.setAttribute("data-y",y);
+      ice.style.cssText="position:absolute;width:var(--cell);height:var(--cell);transform:translate(calc(var(--x)*var(--step)),calc(var(--y)*var(--step)));pointer-events:none;z-index:5;";
+      ice.style.setProperty("--x",x);ice.style.setProperty("--y",y);
+      var alpha=iceGrid[x][y]===2?0.55:0.35;
+      ice.style.background="rgba(200,230,255,"+alpha+")";ice.style.borderRadius="11px";
+      ice.style.border="2px solid rgba(150,200,240,"+(alpha+0.2)+")";ice.style.boxShadow="inset 0 0 12px rgba(255,255,255,0.4)";
+      var label=iceGrid[x][y]===2?"❄️":"";
+      ice.textContent=label;ice.style.fontSize="16px";ice.style.display="flex";ice.style.alignItems="center";ice.style.justifyContent="center";
+      boardEl.appendChild(ice);
+    }
   }
 }
 
 function updateUI(){
   var prevScore=scoreEl.textContent;
   scoreEl.textContent=score;movesEl.textContent=movesLeft;
-  levelEl.textContent=level;targetEl.textContent=target;
+  levelEl.textContent=level;
+  // 多目标进度
+  var goalHTML="";
+  if(goalState&&goalTypes.length){
+    for(var gi=0;gi<goalTypes.length;gi++){
+      var gt=goalTypes[gi];
+      if(gt==="score"){var pct=Math.min(100,(goalState.score.current/goalState.score.target)*100);goalHTML+='<span>🎯 '+Math.floor(pct)+'%</span> ';}
+      else if(gt==="collect"){
+        for(var ci2=0;ci2<goalState.collect.length;ci2++){var gs=goalState.collect[ci2];var svg=getSvg(gs.fruit);goalHTML+='<span class="goal-collect">'+svg.replace("<svg",'<svg style="width:18px;height:18px;vertical-align:middle"')+' '+gs.current+'/'+gs.target+'</span> ';}
+      }
+      else if(gt==="ice"){goalHTML+='<span>🧊 '+goalState.ice.current+'/'+goalState.ice.target+'</span> ';}
+    }
+  }
+  targetEl.innerHTML=goalHTML||"🎯";
   // 分数跳动
   if(prevScore!==""&&+prevScore!==score){scoreEl.classList.remove("score-pop");void scoreEl.offsetWidth;scoreEl.classList.add("score-pop");}
-  // 低步数警告
   if(movesLeft<=3){movesEl.classList.add("moves-warning")}else{movesEl.classList.remove("moves-warning")}
   if(bestEl)bestEl.textContent=bestLevel;fruitCountEl.textContent=activeTypes;
-  var p=Math.min(100,(score/target)*100);
-  progressEl.style.width=p+"%";
-  // 能量
+  progressEl.style.width=(goalState?Math.min(100,(goalState.score.current/goalState.score.target)*100):0)+"%";
   energyTextEl.textContent=energy;
   energyBarEl.style.width=Math.min(100,(energy/MAX_ENERGY)*100)+"%";
   if(energy>=MAX_ENERGY) energyBarEl.classList.add("full"); else energyBarEl.classList.remove("full");
@@ -577,8 +629,20 @@ async function resolveBoard(){
       var parts=key.split(","), mx=+parts[0], my=+parts[1];
       if(cellNodes[mx][my]) cellNodes[mx][my].classList.add("removing");
     }
-    var cleared=0; for(var k in matched) cleared++;
-    // 加能量
+    var cleared=0;
+    for(var k in matched){
+      cleared++;
+      // 追踪收集目标
+      var p3=k.split(","),mx3=+p3[0],my3=+p3[1];
+      var gt=grid[mx3][my3];
+      if(gt>=0) for(var ci=0;ci<goalState.collect.length;ci++){if(goalState.collect[ci].fruit===gt)goalState.collect[ci].current++;}
+      // 冰块伤害：匹配到的格子周围冰块-1
+      if(iceGrid)for(var dx=-1;dx<=1;dx++)for(var dy=-1;dy<=1;dy++){
+        var nx3=mx3+dx,ny3=my3+dy;
+        if(within(nx3,ny3)&&iceGrid[nx3][ny3]>0){iceGrid[nx3][ny3]--;if(iceGrid[nx3][ny3]===0)goalState.ice.current++;}
+      }
+    }
+    goalState.score.current+=cleared*10*combo;
     energy=Math.min(MAX_ENERGY,energy+cleared);
     var gain=cleared*10*combo;score+=gain;
     var comboMsgs=["","","✨  Nice!","🔥  Great!","💥  Amazing!","🌟  FANTASTIC!","👑  GODLIKE!","💫  LEGENDARY!"];
@@ -832,18 +896,19 @@ function startLevel(lv){
   level=lv;
   var cfg=levelConfig(lv);
   var oldTypes=activeTypes;
-  activeTypes=cfg.types;target=cfg.target;movesLeft=cfg.moves;score=0;energy=0;
+  activeTypes=cfg.types;movesLeft=cfg.moves;score=0;energy=0;
   ended=false;busy=false;selected=null;skillMode=null;
+  initGoals(cfg);
+  if(cfg.iceCount) initIceGrid(cfg.iceCount); else iceGrid=null;
   hideOverlay();skillHintEl.classList.remove("show");
   initGrid();layoutBoard();renderAll();updateUI();
-  // 新水果解锁提示
   if(lv>1&&activeTypes>oldTypes){
     var names=["","橙子","柠檬","猕猴桃","西瓜","草莓","蓝莓","🍑 桃子","🥑 牛油果","🍒 樱桃","🍍 菠萝","🍏 苹果","🍅 番茄"];
     showUnlock("🎉","解锁 "+names[activeTypes]+"!");
   }
 }
 function checkEnd(){
-  if(score>=target){
+  if(isGoalsComplete()){
     ended=true;
     if(level>=bestLevel){bestLevel=level+1;localStorage.setItem(STORAGE_BEST,bestLevel);}
     showOverlay(true);
