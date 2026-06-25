@@ -57,6 +57,18 @@
   /* 步数警告 */
   .moves-warning{color:#ff5252!important;animation:movesBlink .5s ease-in-out infinite}
   @keyframes movesBlink{0%,100%{opacity:1}50%{opacity:.4}}
+  /* 落地弹跳 */
+  .gem.landing .gem-inner{animation:landBounce .4s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes landBounce{0%{transform:translateY(-30px) scale(.7)}60%{transform:translateY(4px) scale(1.06)}100%{transform:translateY(0) scale(1)}}
+  /* 屏幕震动 */
+  .board-wrap.shake{animation:screenShake .5s ease}
+  @keyframes screenShake{0%,100%{transform:translate(0)}10%{transform:translate(-6px,2px)}20%{transform:translate(5px,-3px)}30%{transform:translate(-4px,1px)}40%{transform:translate(3px,-2px)}50%{transform:translate(-2px,1px)}}
+  /* 超级飘字 */
+  .floater.super{font-size:26px;color:#fff;text-shadow:0 3px 0 #ff6d00,0 0 20px rgba(255,140,0,.8);animation:floatBig 1.2s ease-out forwards}
+  @keyframes floatBig{0%{opacity:0;transform:translate(-50%,0) scale(.3)}15%{opacity:1;transform:translate(-50%,-10px) scale(1.4)}100%{opacity:0;transform:translate(-50%,-70px) scale(1.8)}}
+  /* 粒子 */
+  .particle{position:absolute;border-radius:50%;pointer-events:none;z-index:25;animation:particleFly .6s ease-out forwards}
+  @keyframes particleFly{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--px),var(--py)) scale(0)}}
   /* 技能提示行 */
   .skill-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#ff8c5a;pointer-events:none;opacity:0;transition:opacity .2s;z-index:15;text-shadow:0 2px 8px rgba(255,255,255,.8)}
   .skill-hint.show{opacity:1}
@@ -412,7 +424,7 @@ async function trySwap(x1,y1,x2,y2){
     var cnt=0;
     cols.forEach(function(x){for(var y=0;y<SIZE;y++)if(grid[x][y]!==null){if(cellNodes[x][y])cellNodes[x][y].classList.add("removing");grid[x][y]=null;cnt++;}});
     rows.forEach(function(y){for(var x=0;x<SIZE;x++)if(grid[x][y]!==null){if(cellNodes[x][y])cellNodes[x][y].classList.add("removing");grid[x][y]=null;cnt++;}});
-    var g=cnt*12;score+=g;showFloater("⚡ 超级条纹! +"+g);updateUI();
+    var g=cnt*12;score+=g;showFloater("⚡ 超级条纹! +"+g,true);shakeBoard();updateUI();
     setTimeout(async function(){
       for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++)if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
       await applyGravity();await wait(280);
@@ -429,7 +441,7 @@ async function trySwap(x1,y1,x2,y2){
       var nx=bx2+dx,ny=by2+dy;if(!within(nx,ny)||grid[nx][ny]===null)continue;
       if(cellNodes[nx][ny])cellNodes[nx][ny].classList.add("removing");grid[nx][ny]=null;cnt2++;
     }
-    var g2=cnt2*15;score+=g2;showFloater("💥 超级炸弹! +"+g2);updateUI();
+    var g2=cnt2*15;score+=g2;showFloater("💥 超级炸弹! +"+g2,true);shakeBoard();updateUI();
     setTimeout(async function(){
       for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++)if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
       await applyGravity();await wait(280);
@@ -445,7 +457,7 @@ async function trySwap(x1,y1,x2,y2){
       var nx2=x1+dx,ny2=y1+dy;if(!within(nx2,ny2)||grid[nx2][ny2]===null)continue;
       if(cellNodes[nx2][ny2])cellNodes[nx2][ny2].classList.add("removing");grid[nx2][ny2]=null;cnt3++;
     }
-    var g3=cnt3*20;score+=g3;showFloater("💣💣 核爆! +"+g3);updateUI();
+    var g3=cnt3*20;score+=g3;showFloater("💣💣 核爆! +"+g3,true);shakeBoard();updateUI();
     setTimeout(async function(){
       for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++)if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
       await applyGravity();await wait(280);
@@ -490,7 +502,7 @@ async function trySwap(x1,y1,x2,y2){
         if(grid[cx3][cy3]===null)continue;
         if(cellNodes[cx3][cy3])cellNodes[cx3][cy3].classList.add("removing");grid[cx3][cy3]=null;cnt6++;
       }
-      var g6=cnt6*30;score+=g6;showFloater("🌈🌈 究极清屏!! +"+g6);updateUI();
+      var g6=cnt6*30;score+=g6;showFloater("🌈🌈 究极清屏!! +"+g6,true);shakeBoard();updateUI();
     }
     // 普通彩虹：清除所有同色
     else {
@@ -730,11 +742,20 @@ async function applyGravity(){
   }
 }
 
-function showFloater(text){
-  var f=document.createElement("div");f.className="floater";
+function showFloater(text,isSuper){
+  var f=document.createElement("div");f.className="floater"+(isSuper?" super":"");
   f.textContent=text;f.style.left="50%";f.style.top="45%";
-  boardEl.appendChild(f);setTimeout(function(){f.remove();},950);
+  boardEl.appendChild(f);setTimeout(function(){f.remove();},isSuper?1200:950);
 }
+function spawnParticles(x,y,count,color){
+  for(var i=0;i<count;i++){
+    var p=document.createElement("div");p.className="particle";
+    var angle=Math.random()*Math.PI*2,dist=30+Math.random()*40;
+    p.style.cssText="left:"+x+"px;top:"+y+"px;width:"+(4+Math.random()*6)+"px;height:"+(4+Math.random()*6)+"px;background:"+color+";--px:"+(Math.cos(angle)*dist)+"px;--py:"+(Math.sin(angle)*dist)+"px";
+    boardEl.appendChild(p);setTimeout(function(){p.remove();},600);
+  }
+}
+function shakeBoard(){var b=boardWrap;b.classList.add("shake");setTimeout(function(){b.classList.remove("shake")},500);}
 
 // ============ 解锁提示 ============
 function showUnlock(icon,text){
