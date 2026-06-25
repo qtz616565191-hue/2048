@@ -403,33 +403,111 @@ async function trySwap(x1,y1,x2,y2){
     },300);
     return;
   }
-  // 彩虹特殊交换
+  // ⚡ 条纹+条纹 → 三行三列
+  if(isStriped(v1)&&isStriped(v2)){
+    busy=true;clearSelection();
+    var cols=new Set(), rows=new Set();
+    [x1,x2].forEach(function(x){for(var i=-1;i<=1;i++){var cx=x+i;if(cx>=0&&cx<SIZE)cols.add(cx);}});
+    [y1,y2].forEach(function(y){for(var i=-1;i<=1;i++){var cy=y+i;if(cy>=0&&cy<SIZE)rows.add(cy);}});
+    var cnt=0;
+    cols.forEach(function(x){for(var y=0;y<SIZE;y++)if(grid[x][y]!==null){if(cellNodes[x][y])cellNodes[x][y].classList.add("removing");grid[x][y]=null;cnt++;}});
+    rows.forEach(function(y){for(var x=0;x<SIZE;x++)if(grid[x][y]!==null){if(cellNodes[x][y])cellNodes[x][y].classList.add("removing");grid[x][y]=null;cnt++;}});
+    var g=cnt*12;score+=g;showFloater("⚡ 超级条纹! +"+g);updateUI();
+    setTimeout(async function(){
+      for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++)if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
+      await applyGravity();await wait(280);
+      if(hasMatch()) await resolveBoard();
+      if(!hasAnyMove()){await wait(150);doShuffle(true);}
+      checkEnd();busy=false;
+    },300);return;
+  }
+  // 💣 炸弹+条纹 → 5x5爆炸
+  if(isBomb(v1)&&isStriped(v2) || isBomb(v2)&&isStriped(v1)){
+    busy=true;clearSelection();var bx2=isBomb(v1)?x1:x2,by2=isBomb(v1)?y1:y2;
+    var cnt2=0;
+    for(var dx=-2;dx<=2;dx++)for(var dy=-2;dy<=2;dy++){
+      var nx=bx2+dx,ny=by2+dy;if(!within(nx,ny)||grid[nx][ny]===null)continue;
+      if(cellNodes[nx][ny])cellNodes[nx][ny].classList.add("removing");grid[nx][ny]=null;cnt2++;
+    }
+    var g2=cnt2*15;score+=g2;showFloater("💥 超级炸弹! +"+g2);updateUI();
+    setTimeout(async function(){
+      for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++)if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
+      await applyGravity();await wait(280);
+      if(hasMatch()) await resolveBoard();
+      if(!hasAnyMove()){await wait(150);doShuffle(true);}
+      checkEnd();busy=false;
+    },300);return;
+  }
+  // 💣+💣 → 7x7超大爆炸
+  if(isBomb(v1)&&isBomb(v2)){
+    busy=true;clearSelection();var cnt3=0;
+    for(var dx=-3;dx<=3;dx++)for(var dy=-3;dy<=3;dy++){
+      var nx2=x1+dx,ny2=y1+dy;if(!within(nx2,ny2)||grid[nx2][ny2]===null)continue;
+      if(cellNodes[nx2][ny2])cellNodes[nx2][ny2].classList.add("removing");grid[nx2][ny2]=null;cnt3++;
+    }
+    var g3=cnt3*20;score+=g3;showFloater("💣💣 核爆! +"+g3);updateUI();
+    setTimeout(async function(){
+      for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++)if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
+      await applyGravity();await wait(280);
+      if(hasMatch()) await resolveBoard();
+      if(!hasAnyMove()){await wait(150);doShuffle(true);}
+      checkEnd();busy=false;
+    },400);return;
+  }
+  // 🌈 彩虹特殊交换
   if(v1===RAINBOW||v2===RAINBOW){
     busy=true;clearSelection();
     var rbX=v1===RAINBOW?x1:x2, rbY=v1===RAINBOW?y1:y2;
     var otherX=v1===RAINBOW?x2:x1, otherY=v1===RAINBOW?y2:y1;
     var targetType=grid[otherX][otherY];
-    // 清除彩虹
-    grid[rbX][rbY]=null;
-    if(cellNodes[rbX][rbY]){cellNodes[rbX][rbY].classList.add("removing");}
-    // 清除所有同色水果
-    var clearCount=0;
-    for(var cx=0;cx<SIZE;cx++) for(var cy=0;cy<SIZE;cy++){
-      if(grid[cx][cy]===targetType&&isNormal(targetType)){
-        if(cellNodes[cx][cy]) cellNodes[cx][cy].classList.add("removing");
-        grid[cx][cy]=null; clearCount++;
+    // 🌈+条纹 → 全变条纹
+    if(isStriped(targetType)){
+      var tH=targetType===STRIPED_H;
+      grid[rbX][rbY]=null;if(cellNodes[rbX][rbY])cellNodes[rbX][rbY].classList.add("removing");
+      var cnt4=0;
+      for(var cx=0;cx<SIZE;cx++)for(var cy=0;cy<SIZE;cy++){
+        if(grid[cx][cy]===null)continue;
+        if(cellNodes[cx][cy])cellNodes[cx][cy].classList.add("removing");grid[cx][cy]=null;cnt4++;
       }
+      var g4=cnt4*25;score+=g4;showFloater("🌈⚡ 彩虹条纹全清! +"+g4);updateUI();
     }
-    var gain=(clearCount+1)*15;score+=gain;
-    showFloater("🌈 全消! +"+gain);
-    updateUI();
-    await wait(300);
-    // 移除DOM
+    // 🌈+💣 → 全变炸弹
+    else if(isBomb(targetType)){
+      grid[rbX][rbY]=null;if(cellNodes[rbX][rbY])cellNodes[rbX][rbY].classList.add("removing");
+      var cnt5=0;
+      for(var cx2=0;cx2<SIZE;cx2++)for(var cy2=0;cy2<SIZE;cy2++){
+        if(grid[cx2][cy2]===null)continue;
+        var dd=Math.abs(cx2-otherX)+Math.abs(cy2-otherY);
+        if(dd<=3){if(cellNodes[cx2][cy2])cellNodes[cx2][cy2].classList.add("removing");grid[cx2][cy2]=null;cnt5++;}
+      }
+      var g5=cnt5*25;score+=g5;showFloater("🌈💣 彩虹炸弹! +"+g5);updateUI();
+    }
+    // 🌈+🌈 → 全屏清空
+    else if(isRainbow(targetType)){
+      grid[rbX][rbY]=null;if(cellNodes[rbX][rbY])cellNodes[rbX][rbY].classList.add("removing");
+      var cnt6=0;
+      for(var cx3=0;cx3<SIZE;cx3++)for(var cy3=0;cy3<SIZE;cy3++){
+        if(grid[cx3][cy3]===null)continue;
+        if(cellNodes[cx3][cy3])cellNodes[cx3][cy3].classList.add("removing");grid[cx3][cy3]=null;cnt6++;
+      }
+      var g6=cnt6*30;score+=g6;showFloater("🌈🌈 究极清屏!! +"+g6);updateUI();
+    }
+    // 普通彩虹：清除所有同色
+    else {
+      grid[rbX][rbY]=null;if(cellNodes[rbX][rbY])cellNodes[rbX][rbY].classList.add("removing");
+      var cnt7=0;
+      for(var cx4=0;cx4<SIZE;cx4++)for(var cy4=0;cy4<SIZE;cy4++){
+        if(grid[cx4][cy4]===targetType&&isNormal(targetType)){
+          if(cellNodes[cx4][cy4])cellNodes[cx4][cy4].classList.add("removing");grid[cx4][cy4]=null;cnt7++;
+        }
+      }
+      var g7=(cnt7+1)*15;score+=g7;showFloater("🌈 全消! +"+g7);updateUI();
+    }
+    await wait(320);
     for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++){
       if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
     }
     await applyGravity();await wait(280);
-    // 连锁
     if(hasMatch()) await resolveBoard();
     if(!hasAnyMove()){await wait(150);doShuffle(true);}
     checkEnd();busy=false;return;
