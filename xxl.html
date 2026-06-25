@@ -171,7 +171,7 @@
   </div>
   <div class="container">
     <header>
-      <button class="btn-sm btn-ghost" style="padding:6px 12px;font-size:13px" onclick="if(!busy)showLevelSelect()">← 返回</button>
+      <button class="btn-sm btn-ghost" id="backToSelectBtn" style="padding:6px 12px;font-size:13px">← 返回</button>
       <div class="level-pill">第 <span id="level">1</span> 关</div>
       <div class="scores">
         <div class="score-box"><div class="label">分数</div><div class="value" id="score">0</div></div>
@@ -1145,6 +1145,7 @@ skLightning.addEventListener("click",function(){activateSkill("lightning");});
 skTsunami.addEventListener("click",function(){activateSkill("tsunami");});
 skSniper.addEventListener("click",function(){activateSkill("sniper");});
 
+document.getElementById("backToSelectBtn").addEventListener("click",function(){busy=false;ended=false;showLevelSelect();});
 document.getElementById("shuffleBtn").addEventListener("click",function(){if(!busy&&!ended) doShuffle(false);});
 document.getElementById("restartBtn").addEventListener("click",function(){if(!busy) startLevel(level);});
 window.addEventListener("resize",function(){if(!busy) layoutBoard();});
