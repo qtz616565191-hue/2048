@@ -953,19 +953,21 @@ function showLevelSelect(){
   busy=false;ended=false;
   if(!lsGrid){lsGrid=document.getElementById("lsGrid");if(!lsGrid)return;}
   if(!lsPanel){lsPanel=document.getElementById("levelSelect");if(!lsPanel)return;}
-  lsGrid.innerHTML="";var totalStars=0;var unlocked=getBestLevel();
-  for(var i=1;i<=LEVELS.length;i++){
-    var cfg=levelConfig(i);var unlocked2=i<=unlocked;var stars=getStarsForLv(i);totalStars+=stars;
-    var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(i===level?" current":"");
-    card.innerHTML='<div class="ls-num">'+(unlocked2?i:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
-    if(unlocked2) card.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(i);});
-    else card.addEventListener("click",function(){card.style.animation="shake .4s ease";setTimeout(function(){card.style.animation=""},400);});
-    // 依次弹入动画
+  lsGrid.innerHTML="";var totalStars=0;
+  var list=getLevelList();
+  for(var i=0;i<list.length;i++){
+    var item=list[i];var lv=item.lv;var cfg=levelConfig(lv);var unlocked2=item.unlocked;var stars=item.stars;totalStars+=stars;
+    var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(lv===level?" current":"");
+    card.innerHTML='<div class="ls-num">'+(unlocked2?lv:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
+    (function(lvl,el){
+      if(unlocked2) el.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(lvl);});
+      else el.addEventListener("click",function(){el.style.animation="shake .4s ease";setTimeout(function(){el.style.animation=""},400);});
+    })(lv,card);
     card.style.opacity="0";card.style.transform="translateY(30px)";
-    setTimeout(function(){card.style.transition="all .3s cubic-bezier(.34,1.56,.64,1)";card.style.opacity="1";card.style.transform="";},i*40);
+    setTimeout(function(){card.style.transition="all .3s";card.style.opacity="1";card.style.transform="";},i*40);
     lsGrid.appendChild(card);
   }
-  lsStats.textContent="⭐ "+totalStars+"/"+(LEVELS.length*3);
+  lsStats.textContent="⭐ "+totalStars+"/"+(list.length*3);
   lsPanel.classList.add("show");
 }
 function getBestLevel(){try{return Math.max(1,+(localStorage.getItem(STORAGE_BEST)||1))}catch(e){return 1}}
@@ -1057,9 +1059,10 @@ function startLevel(lv){
 function calcStars(){
   var cfg=levelConfig(level);var ratio=movesLeft/Math.max(1,cfg.moves);
   var hasScore=goalTypes.indexOf("score")>=0;
-  if(hasScore){var scoreRatio=goalState.score.current/Math.max(1,goalState.score.target);return ratio>0.3||scoreRatio>1.6?3:ratio>0.1||scoreRatio>1.3?2:1;}
-  return ratio>0.3?3:ratio>0.1?2:1;
+  if(hasScore){var scoreRatio=goalState.score.current/Math.max(1,goalState.score.target);return ratio>0.25||scoreRatio>1.4?3:ratio>0.08||scoreRatio>1.15?2:1;}
+  return ratio>0.25?3:ratio>0.08?2:1;
 }
+function getLevelList(){return LEVELS.map(function(l){return{lv:l.lv,name:l.name,stars:getStarsForLv(l.lv),unlocked:l.lv<=getBestLevel()}});}
 function getStarsForLv(lv){try{var d=JSON.parse(localStorage.getItem("xxl_stars")||"{}");return d[lv]||0;}catch(e){return 0;}}
 
 function checkEnd(){
