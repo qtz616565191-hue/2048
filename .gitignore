@@ -1,0 +1,21 @@
+# 桌面无关文件
+desktop.ini
+*.lnk
+*.url
+*.pdf
+*.apk
+*.ai
+*.psd
+*.aep
+*.png
+*.docx
+~$*
+
+# 非游戏项目
+My first game*/
+.zcode/
+.claude/
+
+# 系统文件
+$RECYCLE.BIN/
+Thumbs.db
