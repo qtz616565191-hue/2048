@@ -231,47 +231,78 @@ function isRainbow(v){return v===RAINBOW}
 function isStriped(v){return v===STRIPED_H||v===STRIPED_V}
 function isSpecial(v){return v===BOMB||v===RAINBOW||isStriped(v)}
 
-// ============ 关卡配置(多目标+障碍)============
-var iceGrid=null; // null或SIZE*SIZE数组: 0=无冰 1=一层 2=两层
-var goalState=null; // {score:{current,target},collect:{fruit,current,target}[],ice:{current,target}}
-var goalTypes=[]; // ['score','collect','ice']...
+// ============ 20关完整配置 ============
+var iceGrid=null,vineGrid=null;
+var goalState=null,goalTypes=[],curLevelStars=0;
+var LEVELS=[];
 
-function levelConfig(lv){
-  var cfg={types:Math.min(12,5+Math.floor((lv-1)/2)),moves:Math.max(14,23-Math.floor(lv/3))};
-  cfg.goals=[{type:"score",target:500+lv*200}];
-  // 第4关起加收集目标
-  if(lv>=4) cfg.goals.push({type:"collect",fruit:rand(6),target:8+lv*2});
-  // 第7关起加冰块
-  if(lv>=7){cfg.iceCount=6+lv*2;cfg.goals.push({type:"ice",target:cfg.iceCount});}
-  // 第10关起混搭
-  if(lv>=10){cfg.goals=[{type:"score",target:800+lv*300},{type:"collect",fruit:rand(8),target:15+lv*2}];if(lv>=13)cfg.goals.push({type:"ice",target:10+lv*3});}
-  return cfg;
-}
+(function buildLevels(){
+  // lv,size,types,moves,goals,name,diff
+  var defs=[
+    [1,8,4,25,["score",500],"新手入门",1],
+    [2,8,5,25,["score",800],"小试牛刀",1],
+    [3,8,5,22,["score",1000],"初露锋芒",2],
+    [4,8,5,25,["collect",0,15],"收集草莓",2],
+    [5,8,6,25,["score",1500],"小有成就",2],
+    [6,8,6,25,["ice",10],"破冰行动",3],
+    [7,8,6,22,["collect2",0,20,1,20],"水果猎人",3],
+    [8,8,7,20,["score",2000],"步步为营",3],
+    [9,8,7,25,["vine",12],"藤蔓迷宫",3],
+    [10,9,7,25,["score",2500],"小有挑战",4],
+    [11,9,7,25,["score+collect",1500,2,10],"双重任务",4],
+    [12,9,8,28,["ice",20],"冰天雪地",4],
+    [13,9,8,22,["score",3000],"水果大师",4],
+    [14,9,8,25,["vine+collect",15,4,15],"藤蔓危机",5],
+    [15,9,9,30,["score",4000],"中场BOSS",5],
+    [16,9,9,20,["score",3500],"极限挑战",5],
+    [17,9,9,28,["collectAll",10],"全面收集",5],
+    [18,9,10,30,["ice+vine",15,15],"冰藤双重",5],
+    [19,10,10,25,["score",5000],"终极考验",5],
+    [20,10,12,30,["score",6000],"最终BOSS",6]
+  ];
+  for(var i=0;i<defs.length;i++){
+    var d=defs[i];var goals=[];var t=d[4];
+    if(t[0]==="score") goals=[{type:"score",target:t[1]}];
+    else if(t[0]==="collect") goals=[{type:"collect",fruit:t[1],target:t[2]}];
+    else if(t[0]==="ice") goals=[{type:"ice",target:t[1]}];
+    else if(t[0]==="vine") goals=[{type:"vine",target:t[1]}];
+    else if(t[0]==="collect2") goals=[{type:"collect",fruit:t[1],target:t[2]},{type:"collect",fruit:t[3],target:t[4]}];
+    else if(t[0]==="score+collect") goals=[{type:"score",target:t[1]},{type:"collect",fruit:t[2],target:t[3]}];
+    else if(t[0]==="vine+collect") goals=[{type:"vine",target:t[1]},{type:"collect",fruit:t[2],target:t[3]}];
+    else if(t[0]==="collectAll") goals=[{type:"collectAll",target:t[1]}];
+    else if(t[0]==="ice+vine") goals=[{type:"ice",target:t[1]},{type:"vine",target:t[2]}];
+    LEVELS.push({lv:d[0],size:d[1],types:d[2],moves:d[3],goals:goals,name:d[5],diff:d[6]});
+  }
+})();
+
+function levelConfig(lv){var i=lv-1;return i>=0&&i<LEVELS.length?LEVELS[i]:LEVELS[LEVELS.length-1];}
 
 function initGoals(cfg){
-  goalState={score:{current:0,target:0},collect:[],ice:{current:0,target:0}};
-  goalTypes=[];
+  goalState={score:{current:0,target:0},collect:[],ice:{current:0,target:0},vine:{current:0,target:0}};goalTypes=[];
   for(var i=0;i<cfg.goals.length;i++){
     var g=cfg.goals[i];
     if(g.type==="score"){goalState.score.target=g.target;goalTypes.push("score")}
     else if(g.type==="collect"){goalState.collect.push({fruit:g.fruit,current:0,target:g.target});goalTypes.push("collect")}
+    else if(g.type==="collectAll"){for(var f=0;f<cfg.types;f++)goalState.collect.push({fruit:f,current:0,target:g.target});goalTypes.push("collect")}
     else if(g.type==="ice"){goalState.ice.target=g.target;goalTypes.push("ice")}
+    else if(g.type==="vine"){goalState.vine.target=g.target;goalTypes.push("vine")}
   }
 }
-
 function isGoalsComplete(){
   if(goalState.score.current<goalState.score.target) return false;
   for(var i=0;i<goalState.collect.length;i++){if(goalState.collect[i].current<goalState.collect[i].target)return false;}
   if(goalState.ice.current<goalState.ice.target) return false;
+  if(goalState.vine.current<goalState.vine.target) return false;
   return true;
 }
-
-function initIceGrid(iceCount){
-  iceGrid=emptyGrid();
-  var placed=0;
-  while(placed<iceCount){
-    var x=rand(SIZE),y=rand(SIZE);
-    if(iceGrid[x][y]===0){iceGrid[x][y]=lv>=10?2:1;placed++;}
+function initObstacles(cfg){
+  iceGrid=null;vineGrid=null;var totalIce=0,totalVine=0;
+  for(var i=0;i<cfg.goals.length;i++){var g=cfg.goals[i];if(g.type==="ice")totalIce=g.target;if(g.type==="vine")totalVine=g.target;}
+  if(totalIce>0){iceGrid=[];for(var x=0;x<SIZE;x++){iceGrid[x]=[];for(var y=0;y<SIZE;y++)iceGrid[x][y]=0;}
+    var pi=0;while(pi<totalIce){var ix=rand(SIZE),iy=rand(SIZE);if(iceGrid[ix][iy]===0){iceGrid[ix][iy]=cfg.diff>=4?2:1;pi++;}}
+  }
+  if(totalVine>0){vineGrid=[];for(var x2=0;x2<SIZE;x2++){vineGrid[x2]=[];for(var y2=0;y2<SIZE;y2++)vineGrid[x2][y2]=0;}
+    var pv=0;while(pv<totalVine){var vx=rand(SIZE),vy=rand(SIZE);if(vineGrid[vx][vy]===0&&(!iceGrid||iceGrid[vx][vy]===0)){vineGrid[vx][vy]=1;pv++;}}
   }
 }
 
@@ -388,16 +419,23 @@ function renderAll(){
     boardEl.appendChild(node);
     // 冰块覆盖层
     if(iceGrid&&iceGrid[x][y]>0){
-      var ice=document.createElement("div");
-      ice.className="ice-tile";ice.setAttribute("data-x",x);ice.setAttribute("data-y",y);
+      var ice=document.createElement("div");ice.className="ice-tile";
       ice.style.cssText="position:absolute;width:var(--cell);height:var(--cell);transform:translate(calc(var(--x)*var(--step)),calc(var(--y)*var(--step)));pointer-events:none;z-index:5;";
       ice.style.setProperty("--x",x);ice.style.setProperty("--y",y);
       var alpha=iceGrid[x][y]===2?0.55:0.35;
       ice.style.background="rgba(200,230,255,"+alpha+")";ice.style.borderRadius="11px";
       ice.style.border="2px solid rgba(150,200,240,"+(alpha+0.2)+")";ice.style.boxShadow="inset 0 0 12px rgba(255,255,255,0.4)";
-      var label=iceGrid[x][y]===2?"❄️":"";
-      ice.textContent=label;ice.style.fontSize="16px";ice.style.display="flex";ice.style.alignItems="center";ice.style.justifyContent="center";
+      ice.textContent=iceGrid[x][y]===2?"❄️":"";ice.style.fontSize="16px";ice.style.display="flex";ice.style.alignItems="center";ice.style.justifyContent="center";
       boardEl.appendChild(ice);
+    }
+    // 藤蔓覆盖层
+    if(vineGrid&&vineGrid[x][y]>0){
+      var vine=document.createElement("div");
+      vine.style.cssText="position:absolute;width:var(--cell);height:var(--cell);transform:translate(calc(var(--x)*var(--step)),calc(var(--y)*var(--step)));pointer-events:none;z-index:5;";
+      vine.style.setProperty("--x",x);vine.style.setProperty("--y",y);
+      vine.style.background="rgba(100,180,100,0.35)";vine.style.borderRadius="11px";
+      vine.style.border="2px dashed rgba(60,130,60,0.5)";vine.textContent="🌿";vine.style.fontSize="16px";vine.style.display="flex";vine.style.alignItems="center";vine.style.justifyContent="center";
+      boardEl.appendChild(vine);
     }
   }
 }
@@ -405,7 +443,8 @@ function renderAll(){
 function updateUI(){
   var prevScore=scoreEl.textContent;
   scoreEl.textContent=score;movesEl.textContent=movesLeft;
-  levelEl.textContent=level;
+  var cfg=levelConfig(level);
+  levelEl.innerHTML=cfg?'第'+level+'关<span style="font-size:10px;display:block;opacity:.7">'+cfg.name+'</span>':'第'+level+'关';
   // 多目标进度
   var goalHTML="";
   if(goalState&&goalTypes.length){
@@ -416,6 +455,7 @@ function updateUI(){
         for(var ci2=0;ci2<goalState.collect.length;ci2++){var gs=goalState.collect[ci2];var svg=getSvg(gs.fruit);goalHTML+='<span class="goal-collect">'+svg.replace("<svg",'<svg style="width:18px;height:18px;vertical-align:middle"')+' '+gs.current+'/'+gs.target+'</span> ';}
       }
       else if(gt==="ice"){goalHTML+='<span>🧊 '+goalState.ice.current+'/'+goalState.ice.target+'</span> ';}
+      else if(gt==="vine"){goalHTML+='<span>🌿 '+goalState.vine.current+'/'+goalState.vine.target+'</span> ';}
     }
   }
   targetEl.innerHTML=goalHTML||"🎯";
@@ -636,10 +676,13 @@ async function resolveBoard(){
       var p3=k.split(","),mx3=+p3[0],my3=+p3[1];
       var gt=grid[mx3][my3];
       if(gt>=0) for(var ci=0;ci<goalState.collect.length;ci++){if(goalState.collect[ci].fruit===gt)goalState.collect[ci].current++;}
-      // 冰块伤害：匹配到的格子周围冰块-1
-      if(iceGrid)for(var dx=-1;dx<=1;dx++)for(var dy=-1;dy<=1;dy++){
+      // 冰块/藤蔓伤害
+      if(iceGrid||vineGrid)for(var dx=-1;dx<=1;dx++)for(var dy=-1;dy<=1;dy++){
         var nx3=mx3+dx,ny3=my3+dy;
-        if(within(nx3,ny3)&&iceGrid[nx3][ny3]>0){iceGrid[nx3][ny3]--;if(iceGrid[nx3][ny3]===0)goalState.ice.current++;}
+        if(within(nx3,ny3)){
+          if(iceGrid&&iceGrid[nx3][ny3]>0){iceGrid[nx3][ny3]--;if(iceGrid[nx3][ny3]===0)goalState.ice.current++;}
+          if(vineGrid&&vineGrid[nx3][ny3]>0){vineGrid[nx3][ny3]=0;goalState.vine.current++;}
+        }
       }
     }
     goalState.score.current+=cleared*10*combo;
@@ -896,10 +939,9 @@ function startLevel(lv){
   level=lv;
   var cfg=levelConfig(lv);
   var oldTypes=activeTypes;
-  activeTypes=cfg.types;movesLeft=cfg.moves;score=0;energy=0;
+  SIZE=cfg.size||8;activeTypes=cfg.types;movesLeft=cfg.moves;score=0;energy=0;curLevelStars=0;
   ended=false;busy=false;selected=null;skillMode=null;
-  initGoals(cfg);
-  if(cfg.iceCount) initIceGrid(cfg.iceCount); else iceGrid=null;
+  initGoals(cfg);initObstacles(cfg);
   hideOverlay();skillHintEl.classList.remove("show");
   initGrid();layoutBoard();renderAll();updateUI();
   if(lv>1&&activeTypes>oldTypes){
@@ -909,20 +951,23 @@ function startLevel(lv){
 }
 function checkEnd(){
   if(isGoalsComplete()){
-    ended=true;
+    ended=true;curLevelStars=movesLeft>=5?3:movesLeft>=2?2:1;
     if(level>=bestLevel){bestLevel=level+1;localStorage.setItem(STORAGE_BEST,bestLevel);}
+    // 保存星级
+    try{var sd=JSON.parse(localStorage.getItem("xxl_stars")||"{}");sd[level]=Math.max(sd[level]||0,curLevelStars);sd["best"+level]=Math.max(sd["best"+level]||0,score);localStorage.setItem("xxl_stars",JSON.stringify(sd));}catch(e){}
     showOverlay(true);
   } else if(movesLeft<=0){ended=true;showOverlay(false);}
 }
 function showOverlay(isWin){
   overlay.className="overlay show "+(isWin?"win":"lose");
+  var cfg=levelConfig(level);
   if(isWin){
-    overlayTitle.textContent="过关!";
-    var stars=score>=target*1.8?3:score>=target*1.3?2:1;
-    overlayStars.textContent="★".repeat(stars)+"☆".repeat(3-stars);
-    overlayText.textContent="得分 "+score+" · 下一关更难";
-    overlayBtn.textContent="下一关";
-    overlayBtn.onclick=function(){startLevel(level+1);};
+    overlayTitle.textContent="🎉 "+cfg.name+" 通关!";
+    var s=curLevelStars||1;
+    overlayStars.textContent="⭐".repeat(s)+"☆".repeat(3-s);
+    overlayText.textContent="得分 "+score+" · 剩 "+movesLeft+" 步 · "+s+"星";
+    overlayBtn.textContent=level>=LEVELS.length?"全部通关!":"下一关";
+    overlayBtn.onclick=function(){startLevel(Math.min(level+1,LEVELS.length));};
   } else {
     overlayTitle.textContent="步数用完";
     overlayStars.textContent="";
