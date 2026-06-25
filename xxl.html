@@ -135,7 +135,8 @@
 "use strict";
 var SIZE=8, MAX_TYPES=12, GAP_RATIO=0.025;
 var STORAGE_BEST="h5_xxl_best2";
-var BOMB=-1, RAINBOW=-2;
+var BOMB=-1, RAINBOW=-2, STRIPED_H=-3, STRIPED_V=-4;
+var comboCount=0,comboTimer=0;
 
 // ============ 12种Q版水果SVG（形状各异，辨识度高）============
 var FRUITS=[
@@ -199,7 +200,8 @@ function emptyGrid(){var g=[];for(var x=0;x<SIZE;x++){g[x]=[];for(var y=0;y<SIZE
 function isNormal(v){return v!==null&&v>=0}
 function isBomb(v){return v===BOMB}
 function isRainbow(v){return v===RAINBOW}
-function isSpecial(v){return v===BOMB||v===RAINBOW}
+function isStriped(v){return v===STRIPED_H||v===STRIPED_V}
+function isSpecial(v){return v===BOMB||v===RAINBOW||isStriped(v)}
 
 // ============ 关卡配置 ============
 function levelConfig(lv){
@@ -308,7 +310,10 @@ function buildBackground(){
 function getSvg(type){
   if(type===BOMB) return BOMB_SVG;
   if(type===RAINBOW) return RAINBOW_SVG;
-  return FRUITS[type]||FRUITS[0];
+  if(type===STRIPED_H) return '<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="#fff"/><g transform="scale(0.7) translate(21,21)">'+FRUITS[rand(activeTypes)]+'</g><g fill="#fff" opacity="0.55"><rect x="0" y="30" width="100" height="12" rx="6"/><rect x="0" y="56" width="100" height="12" rx="6"/></g></svg>';
+  if(type===STRIPED_V) return '<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="#fff"/><g transform="scale(0.7) translate(21,21)">'+FRUITS[rand(activeTypes)]+'</g><g fill="#fff" opacity="0.55"><rect x="30" y="0" width="12" height="100" rx="6"/><rect x="56" y="0" width="12" height="100" rx="6"/></g></svg>';
+  var t=type%activeTypes; if(t<0) t+=activeTypes;
+  return FRUITS[t]||FRUITS[0];
 }
 function makeGem(type){
   var n=document.createElement("div");
@@ -352,6 +357,35 @@ async function trySwap(x1,y1,x2,y2){
   if(busy||ended) return;
   if(!adjacent(x1,y1,x2,y2)) return;
   var v1=grid[x1][y1],v2=grid[x2][y2];
+  // 条纹特殊交换
+  if(isStriped(v1)||isStriped(v2)){
+    busy=true;clearSelection();
+    var st=v1,vx=x1,vy=y1; if(!isStriped(v1)){st=v2;vx=x2;vy=y2;}
+    var isH=st===STRIPED_H;
+    grid[vx][vy]=null;
+    if(cellNodes[vx][vy]){cellNodes[vx][vy].classList.add("removing");}
+    var clearCount=0;
+    for(var i=0;i<SIZE;i++){
+      var cx=isH?vx:i, cy=isH?i:vy;
+      if(grid[cx][cy]!==null){
+        if(cellNodes[cx][cy]) cellNodes[cx][cy].classList.add("removing");
+        grid[cx][cy]=null; clearCount++;
+      }
+    }
+    var gain=clearCount*12;score+=gain;
+    showFloater((isH?"➡️ 横排":"⬇️ 竖列")+"消除! +"+gain);
+    updateUI();
+    setTimeout(async function(){
+      for(var rx=0;rx<SIZE;rx++) for(var ry=0;ry<SIZE;ry++){
+        if(cellNodes[rx][ry]&&grid[rx][ry]===null){cellNodes[rx][ry].remove();cellNodes[rx][ry]=null;}
+      }
+      await applyGravity();await wait(280);
+      if(hasMatch()) await resolveBoard();
+      if(!hasAnyMove()){await wait(150);doShuffle(true);}
+      checkEnd();busy=false;
+    },300);
+    return;
+  }
   // 彩虹特殊交换
   if(v1===RAINBOW||v2===RAINBOW){
     busy=true;clearSelection();
@@ -409,13 +443,25 @@ async function resolveBoard(){
     combo++;
     var info=findMatchInfo();
     var matched=info.matched, groups=info.groups;
-    // 判定4连/5连,生成特殊
-    var specials=[];
+    // 判定特殊：L/T形→炸弹, 4连→条纹, 5连→彩虹
+    var cellInGroups={};
     for(var gi=0;gi<groups.length;gi++){
-      var g=groups[gi], mid=Math.floor(g.cells.length/2);
-      var sx=g.cells[mid].x, sy=g.cells[mid].y;
-      if(g.len>=5) specials.push({type:RAINBOW,x:sx,y:sy});
-      else if(g.len>=4) specials.push({type:BOMB,x:sx,y:sy});
+      var g2=groups[gi];
+      for(var ci=0;ci<g2.cells.length;ci++){var kk=g2.cells[ci].x+","+g2.cells[ci].y;cellInGroups[kk]=(cellInGroups[kk]||0)+1;}
+    }
+    var specials=[],usedCells={};
+    for(var gi2=0;gi2<groups.length;gi2++){
+      var g=groups[gi2], mid=Math.floor(g.cells.length/2);
+      var sx=g.cells[mid].x, sy=g.cells[mid].y, key=sx+","+sy;
+      if(usedCells[key]) continue;
+      // 检查是否 L/T 形(该格同时属于横竖两组)
+      if(cellInGroups[key]>=2){specials.push({type:BOMB,x:sx,y:sy});usedCells[key]=true;continue;}
+      if(g.len>=5){specials.push({type:RAINBOW,x:sx,y:sy});usedCells[key]=true;continue;}
+      if(g.len===4){
+        // 判断横/纵：前两个cell x相同为纵向
+        var isH=g.cells[0].x!==g.cells[1].x;
+        specials.push({type:isH?STRIPED_V:STRIPED_H,x:sx,y:sy});usedCells[key]=true;
+      }
     }
     // 标记消除动画
     for(var key in matched){
@@ -454,8 +500,9 @@ async function resolveBoard(){
       specialPlaced.push(sp);
       void sn.offsetHeight;
       sn.style.transition="";
-      if(sp.type===BOMB) showFloater("💣 获得炸弹!");
-      if(sp.type===RAINBOW) showFloater("🌈 获得彩虹!");
+      if(sp.type===BOMB) showFloater("💣 L形消除！炸弹!");
+      else if(sp.type===RAINBOW) showFloater("🌈 5连消除！彩虹!");
+      else if(isStriped(sp.type)) showFloater("⚡ 4连消除！条纹!");
     }
     await applyGravity();await wait(280);
   }
