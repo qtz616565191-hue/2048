@@ -410,6 +410,7 @@ function swapData(x1,y1,x2,y2){var t=grid[x1][y1];grid[x1][y1]=grid[x2][y2];grid
 
 // ============ 渲染 ============
 function buildBackground(){
+  boardEl.querySelectorAll(".cell-bg").forEach(function(n){n.remove();});
   for(var x=0;x<SIZE;x++) for(var y=0;y<SIZE;y++){
     var c=document.createElement("div");c.className="cell-bg";
     c.style.setProperty("--x",x);c.style.setProperty("--y",y);
@@ -433,6 +434,8 @@ function makeGem(type){
 }
 function setPos(node,x,y){node.style.setProperty("--x",x);node.style.setProperty("--y",y);}
 function renderAll(){
+  // 确保有数据
+  if(!grid||grid.length===0){initGrid();}
   var old=boardEl.querySelectorAll(".gem,.ice-tile");
   old.forEach(function(n){n.remove();});
   cellNodes=emptyGrid();
@@ -910,7 +913,10 @@ function showLevelSelect(){
     var cfg=levelConfig(i);var unlocked2=i<=unlocked;var stars=getStarsForLv(i);totalStars+=stars;
     var card=document.createElement("div");card.className="ls-card"+(unlocked2?"":(" locked"))+(i===level?" current":"");
     card.innerHTML='<div class="ls-num">'+(unlocked2?i:'🔒')+'</div><div class="ls-name">'+(cfg?cfg.name:'')+'</div><div class="ls-stars">'+'⭐'.repeat(stars)+'☆'.repeat(3-stars)+'</div>';
-    if(unlocked2) card.addEventListener("click",function(){lsPanel.classList.remove("show");startLevel(i);});
+    if(unlocked2) card.addEventListener("click",function(){
+      lsPanel.classList.remove("show");
+      requestAnimationFrame(function(){startLevel(i);});
+    });
     else card.addEventListener("click",function(){card.style.animation="shake .4s ease";setTimeout(function(){card.style.animation=""},400);});
     // 依次弹入动画
     card.style.opacity="0";card.style.transform="translateY(30px)";
@@ -1099,9 +1105,16 @@ window.addEventListener("resize",function(){if(!busy) layoutBoard();});
 document.addEventListener("gesturestart",function(e){e.preventDefault();});
 
 // ============ 启动 ============
-layoutBoard(); // 先算布局让CSS变量到位
+SIZE=8;activeTypes=levelConfig(1).types; // 确保默认值
+layoutBoard();
 buildBackground();
-showLevelSelect(); // 直接显示选关，等玩家选择了再startLevel
+// 等 DOM 稳定后显示选关
+requestAnimationFrame(function(){
+  requestAnimationFrame(function(){
+    if(LEVELS.length>0){showLevelSelect();}
+    else{console.error("LEVELS empty!");startLevel(1);}
+  });
+});
 })();
 </script>
 </body>
